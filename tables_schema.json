@@ -1,0 +1,68 @@
+{
+  "frota": [
+    {
+      "Field": "id",
+      "Type": "int(11)",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": null,
+      "Extra": "auto_increment"
+    },
+    {
+      "Field": "placa",
+      "Type": "varchar(10)",
+      "Null": "NO",
+      "Key": "UNI",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "modelo",
+      "Type": "varchar(100)",
+      "Null": "NO",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "ano",
+      "Type": "int(11)",
+      "Null": "NO",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "capacidade",
+      "Type": "int(11)",
+      "Null": "NO",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "motorista_id",
+      "Type": "int(11)",
+      "Null": "YES",
+      "Key": "MUL",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "status",
+      "Type": "enum('Disponível','Em Rota','Manutenção','Sem Motorista')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "Disponível",
+      "Extra": ""
+    },
+    {
+      "Field": "escola_id",
+      "Type": "int(11)",
+      "Null": "YES",
+      "Key": "MUL",
+      "Default": null,
+      "Extra": ""
+    }
+  ]
+}

@@ -1,0 +1,134 @@
+{
+  "responsaveis": [
+    {
+      "Field": "id",
+      "Type": "int(11)",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": null,
+      "Extra": "auto_increment"
+    },
+    {
+      "Field": "nome",
+      "Type": "varchar(255)",
+      "Null": "NO",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "cpf",
+      "Type": "varchar(20)",
+      "Null": "YES",
+      "Key": "UNI",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "email",
+      "Type": "varchar(255)",
+      "Null": "YES",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "telefone",
+      "Type": "varchar(20)",
+      "Null": "NO",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "endereco_residencial",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "status",
+      "Type": "varchar(20)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "Ativo",
+      "Extra": ""
+    }
+  ],
+  "alunos": [
+    {
+      "Field": "id",
+      "Type": "int(11)",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": null,
+      "Extra": "auto_increment"
+    },
+    {
+      "Field": "nome",
+      "Type": "varchar(150)",
+      "Null": "NO",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "responsavel_telefone",
+      "Type": "varchar(20)",
+      "Null": "YES",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "escola_id",
+      "Type": "int(11)",
+      "Null": "YES",
+      "Key": "MUL",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "turno",
+      "Type": "enum('Manhã','Tarde','Integral','Noite')",
+      "Null": "NO",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "valor_mensalidade",
+      "Type": "decimal(10,2)",
+      "Null": "NO",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "status",
+      "Type": "enum('Ativo','Inativo')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "Ativo",
+      "Extra": ""
+    },
+    {
+      "Field": "avatar_url",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "responsavel_id",
+      "Type": "int(11)",
+      "Null": "YES",
+      "Key": "MUL",
+      "Default": null,
+      "Extra": ""
+    }
+  ]
+}
