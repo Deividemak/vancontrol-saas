@@ -34,7 +34,7 @@ export const ViagemTela: React.FC<{ viagemId: number; onVoltar: () => void; moni
   const [esteve, setEsteve] = useState<number[]>([]);
   const [dispensadas, setDispensadas] = useState<number[]>([]);
   const [saida, setSaida] = useState<{ seq: number; alunos: { aluno_id: number; nome: string }[] } | null>(null);
-  const recarregando = useRef<number>();
+  const recarregando = useRef<number | undefined>(undefined);
 
   const carregar = useCallback(async () => {
     try {

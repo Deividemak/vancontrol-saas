@@ -8,7 +8,7 @@ export const BotaoSegurar: React.FC<{ segundos?: number; onConfirmar: () => void
 }) => {
   const [progresso, setProgresso] = useState(0);
   const inicio = useRef<number | null>(null);
-  const frame = useRef<number>();
+  const frame = useRef<number | undefined>(undefined);
   const parar = () => { inicio.current = null; if (frame.current) cancelAnimationFrame(frame.current); setProgresso(0); };
   const passo = () => {
     if (inicio.current === null) return;

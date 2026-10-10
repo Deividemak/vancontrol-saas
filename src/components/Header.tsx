@@ -9,6 +9,7 @@ interface User {
 interface HeaderProps {
   title: string;
   subtitle?: string;
+  user: User;
   onLogout: () => void;
   onOpenConfig: () => void;
 }
