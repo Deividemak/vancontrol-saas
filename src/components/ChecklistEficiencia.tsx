@@ -340,7 +340,7 @@ export const ChecklistEficiencia: React.FC<{ onNavigate?: (tab: string) => void 
   const c = hoje?.contadores;
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 lg:p-8 space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-wrap justify-between items-center gap-3">
         <div>
           <h2 className="text-3xl font-black tracking-tight">Checklists</h2>
