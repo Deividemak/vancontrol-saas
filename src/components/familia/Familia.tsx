@@ -128,7 +128,8 @@ export const FamiliaResponsavel: React.FC<{
   resp: { id: number; nome: string } | null;
   onFechar: () => void;
   onAbrirPortal?: () => void;
-}> = ({ resp, onFechar, onAbrirPortal }) => {
+  onAdicionarFilho?: () => void;
+}> = ({ resp, onFechar, onAbrirPortal, onAdicionarFilho }) => {
   const [dados, setDados] = useState<FamiliaResp | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -147,6 +148,7 @@ export const FamiliaResponsavel: React.FC<{
   return (
     <Modal aberto={!!resp} onFechar={onFechar} titulo={`Família — ${resp?.nome || ''}`} tamanho="lg"
       rodape={<>
+        {onAdicionarFilho && <Botao variante="secundario" icone="add" onClick={onAdicionarFilho} className="mr-auto">Adicionar filho</Botao>}
         {onAbrirPortal && <Botao variante="secundario" icone="phonelink_ring" onClick={onAbrirPortal}>Portal e avisos</Botao>}
         <Botao onClick={onFechar}>Fechar</Botao>
       </>}>
@@ -154,7 +156,7 @@ export const FamiliaResponsavel: React.FC<{
         <Erro msg={erro} />
         {!dados && !erro && <p className="text-sm text-slate-400 py-6 text-center">Carregando…</p>}
         {dados && !dados.alunos.length && (
-          <p className="text-sm text-slate-400 py-6 text-center">Nenhum aluno ligado a este responsável. Ligue pela ficha do aluno, no campo "Responsável".</p>
+          <p className="text-sm text-slate-400 py-6 text-center">Nenhum aluno ligado a este responsável. Use "Adicionar filho" ou ligue pela ficha do aluno.</p>
         )}
         {dados && dados.alunos.map(a => (
           <div key={a.id} className={`${cartao} space-y-2`}>

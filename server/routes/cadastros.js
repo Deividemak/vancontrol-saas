@@ -73,11 +73,37 @@ responsaveisRouter.get('/', handler(async (req, res, conn) => {
     res.json(rows.map(row => ({ ...row, whatsapp_ativo: row.whatsapp_ativo === undefined ? true : !!row.whatsapp_ativo, total_alunos: Number(row.total_alunos) })));
 }, 'Erro ao buscar responsáveis'));
 
-function dadosResponsavel(b) {
+export function dadosResponsavel(b) {
     const nome = str(b.nome, 255), telefone = str(b.telefone, 20);
     if (!nome) throw new HttpError(400, 'Informe o nome do responsável.');
     if (!telefone) throw new HttpError(400, 'Informe o telefone do responsável.');
     return { nome, telefone, cpf: str(b.cpf, 20), email: str(b.email, 255), endereco_residencial: str(b.endereco_residencial, 500), status: str(b.status, 20) || 'Ativo' };
+}
+
+const soDigitos = (v) => String(v || '').replace(/\D/g, '');
+// telefone sem o 55 do Brasil, para comparar "(61) 99999-0000" com "5561999990000"
+const telefoneBase = (v) => { const d = soDigitos(v); return d.length >= 12 && d.startsWith('55') ? d.slice(2) : d; };
+
+/**
+ * Cria o responsável (usado pelo cadastro do aluno com "responsável novo").
+ * Recusa telefone ou CPF que já são de outro responsável da empresa, para não duplicar a família.
+ */
+export async function inserirResponsavel(conn, d) {
+    const existentes = await conn.query('SELECT id, nome, telefone, cpf FROM responsaveis WHERE empresa_id = ? AND anonimizado_em IS NULL', [empresaId()]);
+    const tel = telefoneBase(d.telefone), cpf = soDigitos(d.cpf);
+    const mesmoTel = tel.length >= 10 && existentes.find(r => telefoneBase(r.telefone) === tel);
+    if (mesmoTel) throw new HttpError(409, `Esse telefone já é de ${mesmoTel.nome}. Escolha esse responsável em vez de cadastrar outro.`);
+    const mesmoCpf = cpf.length === 11 && existentes.find(r => soDigitos(r.cpf) === cpf);
+    if (mesmoCpf) throw new HttpError(409, `Esse CPF já é de ${mesmoCpf.nome}. Escolha esse responsável em vez de cadastrar outro.`);
+    try {
+        const r = await conn.query(
+            'INSERT INTO responsaveis (empresa_id, nome, cpf, email, telefone, endereco_residencial, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [empresaId(), d.nome, d.cpf, d.email, d.telefone, d.endereco_residencial, 'Ativo']);
+        return Number(r.insertId);
+    } catch (err) {
+        if (duplicado(err)) throw new HttpError(400, 'Este CPF já está cadastrado.');
+        throw err;
+    }
 }
 
 responsaveisRouter.post('/', handler(async (req, res, conn) => {

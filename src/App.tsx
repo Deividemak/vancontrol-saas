@@ -54,6 +54,7 @@ const App: React.FC = () => {
   });
   const [token, setToken] = useState<string | null>(localStorage.getItem('vancontrol_token'));
   const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [novoAlunoDe, setNovoAlunoDe] = useState<number | null>(null); // "Adicionar filho" na família do responsável
   const [naoLidas, setNaoLidas] = useState(0);
 
   const papel = papelDoUsuario(user);
@@ -126,7 +127,7 @@ const App: React.FC = () => {
       case 'dashboard':
         return <Dashboard />;
       case 'alunos':
-        return <Alunos onNavigate={setActiveTab} />;
+        return <Alunos onNavigate={setActiveTab} novoComResponsavel={novoAlunoDe} onNovoAberto={() => setNovoAlunoDe(null)} />;
       case 'financeiro':
         return <Financeiro />;
       case 'manutencao':
@@ -136,7 +137,7 @@ const App: React.FC = () => {
       case 'motoristas':
         return <Motoristas />;
       case 'responsaveis':
-        return <Responsaveis />;
+        return <Responsaveis onAdicionarFilho={r => { setNovoAlunoDe(r.id); setActiveTab('alunos'); }} />;
       case 'rotas':
         return <Rotas />;
       case 'escolas':

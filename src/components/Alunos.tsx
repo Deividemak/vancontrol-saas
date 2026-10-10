@@ -4,6 +4,7 @@ import { Abas, Botao, Campo, Modal, Selo, inputCls, textareaCls, erroDaResposta 
 import { EnderecoComMapa } from './mapa/EnderecoComMapa';
 import { AutorizadosAluno } from './operacao/AutorizadosAluno';
 import { ResponsaveisDoAluno } from './familia/Familia';
+import { EscolherResponsavel, ModoResp, RespNovo, respNovoVazio, responsavelRepetido } from './familia/EscolherResponsavel';
 import { Endereco, enderecoDe, enderecoVazio, statusGeo, GeoStatus } from '../services/geo';
 
 type Turno = 'Manhã' | 'Tarde' | 'Integral' | 'Noite';
@@ -32,7 +33,7 @@ interface Student {
 }
 
 interface School { id: number; nome: string; }
-interface Responsible { id: number; nome: string; telefone?: string; }
+interface Responsible { id: number; nome: string; telefone?: string; cpf?: string | null; }
 interface Contato { nome: string; parentesco: string; telefone: string; }
 
 interface FormAluno {
@@ -108,7 +109,12 @@ const Avatar: React.FC<{ nome: string; foto?: string | null; tamanho?: string }>
     </div>
   );
 
-export const Alunos: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNavigate }) => {
+export const Alunos: React.FC<{
+  onNavigate?: (tab: string) => void;
+  /** abrir "Novo aluno" já com este responsável (vem do "Adicionar filho" da família) */
+  novoComResponsavel?: number | null;
+  onNovoAberto?: () => void;
+}> = ({ novoComResponsavel, onNovoAberto }) => {
   const [students, setStudents] = useState<Student[]>([]);
   const [schools, setSchools] = useState<School[]>([]);
   const [responsibles, setResponsibles] = useState<Responsible[]>([]);
@@ -123,6 +129,8 @@ export const Alunos: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNav
   const [carregandoAluno, setCarregandoAluno] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
+  const [modoResp, setModoResp] = useState<ModoResp>('cadastrado');
+  const [respNovo, setRespNovo] = useState<RespNovo>(respNovoVazio());
 
   const fetchData = async () => {
     setLoading(true);
@@ -140,14 +148,23 @@ export const Alunos: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNav
 
   useEffect(() => { fetchData(); }, []);
 
-  const abrir = async (student?: Student) => {
+  // "Adicionar filho" na família do responsável: abre o Novo aluno com ele já escolhido
+  useEffect(() => {
+    if (!novoComResponsavel || loading) return;
+    abrir(undefined, novoComResponsavel);
+    onNovoAberto?.();
+  }, [novoComResponsavel, loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const abrir = async (student?: Student, responsavelId?: number) => {
     setErro('');
     setAba('dados');
     setPreco(null);
     setAberto(true);
+    setModoResp('cadastrado');
+    setRespNovo(respNovoVazio());
     if (!student) {
       setEditandoId(null);
-      setForm(formVazio());
+      setForm({ ...formVazio(), responsavel_id: responsavelId ? String(responsavelId) : '' });
       return;
     }
     setEditandoId(student.id);
@@ -177,6 +194,7 @@ export const Alunos: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNav
         endereco: enderecoDe(a),
         foto_preview: a.foto || null,
       });
+      setModoResp(!a.responsavel_id && a.responsavel_telefone ? 'avulso' : 'cadastrado');
     } catch (e) {
       setErro((e as Error).message);
     } finally {
@@ -191,9 +209,16 @@ export const Alunos: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNav
     if (form.valor_mensalidade === '') { setAba('dados'); setErro('Informe o valor da mensalidade.'); return; }
     const incompleto = form.contatos_emergencia.some(c => (c.nome || c.telefone) && (!c.nome || !c.telefone));
     if (incompleto) { setAba('emergencia'); setErro('Cada contato de emergência precisa de nome e telefone.'); return; }
+    if (modoResp === 'novo') {
+      if (!respNovo.nome.trim() || !respNovo.telefone.trim()) { setAba('dados'); setErro('Informe o nome e o telefone do novo responsável.'); return; }
+      const rep = responsavelRepetido(responsibles, respNovo);
+      if (rep) { setAba('dados'); setErro(`Esse ${rep.campo} já é de ${rep.resp.nome}. Use o responsável já cadastrado.`); return; }
+    }
 
     const { endereco, foto_preview, ...resto } = form;
     const corpo: Record<string, unknown> = { ...resto, ...endereco };
+    if (modoResp !== 'cadastrado') corpo.responsavel_id = '';
+    if (modoResp === 'novo') corpo.responsavel_novo = respNovo;
     if (form.foto === undefined) { delete corpo.foto; delete corpo.foto_thumb; }
 
     setSalvando(true);
@@ -374,9 +399,9 @@ export const Alunos: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNav
             {aba === 'responsaveis' && editandoId && (
               <ResponsaveisDoAluno
                 alunoId={editandoId}
-                alterado={String(students.find(s => s.id === editandoId)?.responsavel_id || '') !== f.responsavel_id}
-                onEscolher={() => setAba('dados')}
-                onCadastrar={onNavigate ? () => { setAberto(false); onNavigate('responsaveis'); } : undefined}
+                alterado={modoResp === 'novo' || String(students.find(s => s.id === editandoId)?.responsavel_id || '') !== (modoResp === 'cadastrado' ? f.responsavel_id : '')}
+                onEscolher={() => { setModoResp('cadastrado'); setAba('dados'); }}
+                onCadastrar={() => { setModoResp('novo'); setAba('dados'); }}
               />
             )}
             {aba === 'retirada' && editandoId && <AutorizadosAluno alunoId={editandoId} />}
@@ -445,17 +470,19 @@ export const Alunos: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNav
                   <Campo label="Dia de vencimento">
                     <input type="number" min="1" max="31" className={inputCls} value={f.dia_vencimento} onChange={e => set({ dia_vencimento: e.target.value })} />
                   </Campo>
-                  <Campo label="Responsável" className="col-span-2">
-                    <select className={inputCls} value={f.responsavel_id} onChange={e => set({ responsavel_id: e.target.value })}>
-                      <option value="">Nenhum (usar telefone avulso)</option>
-                      {responsibles.map(r => <option key={r.id} value={r.id}>{r.nome}</option>)}
-                    </select>
+                  <Campo label="Responsável" className="col-span-2 md:col-span-4">
+                    <EscolherResponsavel
+                      lista={responsibles}
+                      modo={modoResp}
+                      onModo={setModoResp}
+                      responsavelId={f.responsavel_id}
+                      onResponsavel={id => set({ responsavel_id: id })}
+                      novo={respNovo}
+                      onNovo={setRespNovo}
+                      telefoneAvulso={f.responsavel_telefone}
+                      onTelefoneAvulso={t => set({ responsavel_telefone: t })}
+                    />
                   </Campo>
-                  {!f.responsavel_id && (
-                    <Campo label="Telefone do responsável (avulso)" className="col-span-2">
-                      <input className={inputCls} value={f.responsavel_telefone} onChange={e => set({ responsavel_telefone: e.target.value })} placeholder="(00) 00000-0000" />
-                    </Campo>
-                  )}
                 </div>
               </div>
             )}

@@ -5,6 +5,7 @@ import { hojeBR } from '../services/viagens.js';
 import { vencimentoNoMes } from '../services/financeiro.js';
 import { empresaId, daEmpresa, refDaEmpresa } from '../lib/tenant.js';
 import { registrarAcesso } from '../services/lgpd.js';
+import { dadosResponsavel, inserirResponsavel } from './cadastros.js';
 
 const router = Router();
 
@@ -138,10 +139,20 @@ async function conferirRefs(conn, d) {
     await refDaEmpresa(conn, 'responsaveis', d.responsavel_id, 'Responsável');
 }
 
+/** "responsavel_novo" no corpo: responsável cadastrado junto com o aluno (mesmas regras da tela de responsáveis). */
+function lerResponsavelNovo(body, d) {
+    if (!body.responsavel_novo) return null;
+    const novo = dadosResponsavel(body.responsavel_novo);
+    d.responsavel_id = null; // será o id do responsável criado, dentro da transação
+    return novo;
+}
+
 router.post('/', handler(async (req, res, conn) => {
     const d = ler(req.body);
+    const respNovo = lerResponsavelNovo(req.body, d);
     await conferirRefs(conn, d);
     const id = await transacao(conn, async () => {
+        if (respNovo) d.responsavel_id = await inserirResponsavel(conn, respNovo);
         const cols = [...COLUNAS, 'foto', 'foto_thumb'];
         const r = await conn.query(
             `INSERT INTO alunos (empresa_id, inativado_em, ${cols.join(', ')}) VALUES (?, ${d.status === 'Ativo' ? 'NULL' : 'NOW()'}, ${cols.map(() => '?').join(', ')})`,
@@ -150,14 +161,16 @@ router.post('/', handler(async (req, res, conn) => {
         await salvarContatos(conn, novoId, d.contatos);
         return novoId;
     });
-    res.status(201).json({ id });
+    res.status(201).json({ id, responsavel_id: d.responsavel_id });
 }, 'Erro ao criar aluno'));
 
 router.put('/:id', handler(async (req, res, conn) => {
     const id = await daEmpresa(conn, 'alunos', parseId(req), { nome: 'Aluno' });
     const d = ler(req.body);
+    const respNovo = lerResponsavelNovo(req.body, d);
     await conferirRefs(conn, d);
     await transacao(conn, async () => {
+        if (respNovo) d.responsavel_id = await inserirResponsavel(conn, respNovo);
         const cols = [...COLUNAS];
         if (d.foto !== undefined) cols.push('foto');
         if (d.foto_thumb !== undefined) cols.push('foto_thumb');

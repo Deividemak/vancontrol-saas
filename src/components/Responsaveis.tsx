@@ -17,7 +17,7 @@ interface Responsible {
   portal_ultimo_acesso?: string | null;
 }
 
-export const Responsaveis: React.FC = () => {
+export const Responsaveis: React.FC<{ onAdicionarFilho?: (resp: { id: number; nome: string }) => void }> = ({ onAdicionarFilho }) => {
   const [responsibles, setResponsibles] = useState<Responsible[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -309,7 +309,8 @@ export const Responsaveis: React.FC = () => {
         </div>
       )}
       <PortalResponsavel resp={portalDe} onFechar={() => setPortalDe(null)} onMudou={fetchData} />
-      <FamiliaResponsavel resp={familiaDe} onFechar={() => setFamiliaDe(null)} onAbrirPortal={() => { setPortalDe(familiaDe); setFamiliaDe(null); }} />
+      <FamiliaResponsavel resp={familiaDe} onFechar={() => setFamiliaDe(null)} onAbrirPortal={() => { setPortalDe(familiaDe); setFamiliaDe(null); }}
+        onAdicionarFilho={onAdicionarFilho && familiaDe ? () => { const r = familiaDe; setFamiliaDe(null); onAdicionarFilho(r); } : undefined} />
     </div>
   );
 };
