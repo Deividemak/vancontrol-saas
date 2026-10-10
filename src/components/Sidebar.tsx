@@ -1,34 +1,28 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Papel, podeVer, NOMES_PAPEIS } from '../permissoes';
-import { apiFetch } from '../services/api';
 
 interface SidebarItemProps {
   icon: string;
   label: string;
   active?: boolean;
   badge?: number;
-  badgeCor?: string;
-  sub?: boolean;
   onClick: () => void;
 }
 
-const SidebarItem: React.FC<SidebarItemProps> = ({ icon, label, active, badge, badgeCor = 'bg-emerald-500', sub, onClick }) => (
+const SidebarItem: React.FC<SidebarItemProps> = ({ icon, label, active, badge, onClick }) => (
   <button
     onClick={onClick}
-    className={`flex items-center gap-3 rounded-lg w-full transition-all ${sub ? 'pl-9 pr-3 py-2' : 'px-3 py-2.5'} ${
+    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg w-full transition-all ${
       active 
         ? 'bg-primary/10 text-primary font-bold' 
         : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
     }`}
   >
-    <span className={`material-symbols-outlined ${sub ? 'text-[19px]' : 'text-[22px]'}`}>{icon}</span>
-    <span className={`${sub ? 'text-[13px]' : 'text-sm'} flex-1 text-left`}>{label}</span>
-    <Bolinha n={badge} cor={badgeCor} />
+    <span className="material-symbols-outlined text-[22px]">{icon}</span>
+    <span className="text-sm flex-1 text-left">{label}</span>
+    {!!badge && <span className="min-w-5 h-5 px-1.5 rounded-full bg-emerald-500 text-white text-[11px] font-black flex items-center justify-center">{badge}</span>}
   </button>
 );
-
-const Bolinha: React.FC<{ n?: number; cor: string }> = ({ n, cor }) =>
-  n ? <span className={`min-w-5 h-5 px-1.5 rounded-full ${cor} text-white text-[11px] font-black flex items-center justify-center`}>{n}</span> : null;
 
 interface SidebarProps {
   activeTab: string;
@@ -43,13 +37,16 @@ const ITENS: { aba: string; icon: string; label: string }[] = [
   { aba: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
   { aba: 'operacao', icon: 'radar', label: 'Operação' },
   { aba: 'mensagens', icon: 'forum', label: 'Mensagens' },
-  { aba: 'frota', icon: 'airport_shuttle', label: 'Frota' }, // vira o grupo da frota (FROTA abaixo)
+  { aba: 'frota', icon: 'airport_shuttle', label: 'Frota' },
+  { aba: 'checklist', icon: 'fact_check', label: 'Checklist' },
   { aba: 'documentos', icon: 'folder_shared', label: 'Documentos' },
   { aba: 'motoristas', icon: 'badge', label: 'Motoristas' },
   { aba: 'alunos', icon: 'groups', label: 'Alunos' },
   { aba: 'responsaveis', icon: 'family_history', label: 'Responsáveis' },
   { aba: 'financeiro', icon: 'account_balance_wallet', label: 'Financeiro' },
+  { aba: 'abastecimento', icon: 'local_gas_station', label: 'Abastecimento' },
   { aba: 'rotas', icon: 'map', label: 'Rotas' },
+  { aba: 'manutencao', icon: 'build', label: 'Manutenção' },
   { aba: 'escolas', icon: 'domain', label: 'Escolas' },
   { aba: 'relatorios', icon: 'query_stats', label: 'Relatórios' },
   { aba: 'plano', icon: 'workspace_premium', label: 'Meu plano' },
@@ -57,49 +54,8 @@ const ITENS: { aba: string; icon: string; label: string }[] = [
   { aba: 'lgpd', icon: 'shield_person', label: 'Privacidade (LGPD)' },
 ];
 
-// Grupo "Frota": abre e fecha, com as telas da frota recuadas
-const FROTA: { aba: string; icon: string; label: string }[] = [
-  { aba: 'frota', icon: 'airport_shuttle', label: 'Vans' },
-  { aba: 'checklist', icon: 'fact_check', label: 'Checklist' },
-  { aba: 'manutencao', icon: 'build', label: 'Manutenção' },
-  { aba: 'abastecimento', icon: 'local_gas_station', label: 'Abastecimento' },
-];
-const CHAVE_GRUPO = 'vancontrol_menu_frota';
-
-function lerAberto(): boolean {
-  try { return localStorage.getItem(CHAVE_GRUPO) === '1'; } catch { return false; }
-}
-function salvarAberto(v: boolean) {
-  try { localStorage.setItem(CHAVE_GRUPO, v ? '1' : '0'); } catch { /* sem armazenamento: só não lembra */ }
-}
-
-/** Checklists que pedem atenção hoje (pendentes + com problema); 0 se der erro. */
-function useAlertasChecklist(ativo: boolean) {
-  const [n, setN] = useState(0);
-  useEffect(() => {
-    if (!ativo) { setN(0); return; }
-    let vivo = true;
-    const ler = () => apiFetch('/api/checklists/hoje')
-      .then(r => (r.ok ? r.json() : null))
-      .then(j => { if (vivo) setN(j?.contadores ? Number(j.contadores.pendentes || 0) + Number(j.contadores.com_problema || 0) : 0); })
-      .catch(() => { if (vivo) setN(0); });
-    ler();
-    const t = window.setInterval(ler, 2 * 60 * 1000);
-    return () => { vivo = false; window.clearInterval(t); };
-  }, [ativo]);
-  return n;
-}
-
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, naoLidas = 0, papel = 'dono' as Papel, usuario, onSair }) => {
   const iniciais = (usuario?.nome || '?').split(' ').filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase();
-  const subitens = FROTA.filter(i => podeVer(papel, i.aba));
-  const naFrota = subitens.some(i => i.aba === activeTab);
-  const [aberto, setAberto] = useState(() => lerAberto() || naFrota);
-  const alertasChecklist = useAlertasChecklist(subitens.some(i => i.aba === 'checklist'));
-
-  const mudarAberto = (v: boolean) => { setAberto(v); salvarAberto(v); };
-  // abre sozinho ao entrar numa tela da frota
-  useEffect(() => { if (naFrota && !aberto) mudarAberto(true); }, [naFrota]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <aside className="w-64 bg-slate-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col h-full shrink-0">
       <div className="p-6 flex items-center gap-3">
@@ -115,36 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, naoLi
       </div>
 
       <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto custom-scrollbar">
-        {ITENS.filter(i => i.aba === 'frota' || podeVer(papel, i.aba)).map(i => i.aba === 'frota' ? (
-          subitens.length > 0 && (
-            <div key="grupo-frota" className="space-y-1">
-              <div className={`flex items-center rounded-lg w-full transition-all ${
-                naFrota && !aberto ? 'bg-primary/10 text-primary font-bold' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
-              }`}>
-                <button onClick={() => { mudarAberto(true); setActiveTab(subitens[0].aba); }} className="flex items-center gap-3 pl-3 py-2.5 flex-1 min-w-0">
-                  <span className="material-symbols-outlined text-[22px]">airport_shuttle</span>
-                  <span className="text-sm flex-1 text-left">Frota</span>
-                  {!aberto && <Bolinha n={alertasChecklist} cor="bg-amber-500" />}
-                </button>
-                <button onClick={() => mudarAberto(!aberto)} className="px-2 py-2.5" aria-label={aberto ? 'Fechar o grupo Frota' : 'Abrir o grupo Frota'} aria-expanded={aberto}>
-                  <span className="material-symbols-outlined text-[20px]">{aberto ? 'expand_more' : 'chevron_right'}</span>
-                </button>
-              </div>
-              {aberto && subitens.map(s => (
-                <SidebarItem
-                  key={s.aba}
-                  sub
-                  icon={s.icon}
-                  label={s.label}
-                  badge={s.aba === 'checklist' ? alertasChecklist : undefined}
-                  badgeCor="bg-amber-500"
-                  active={activeTab === s.aba}
-                  onClick={() => setActiveTab(s.aba)}
-                />
-              ))}
-            </div>
-          )
-        ) : (
+        {ITENS.filter(i => podeVer(papel, i.aba)).map(i => (
           <SidebarItem
             key={i.aba}
             icon={i.icon}
