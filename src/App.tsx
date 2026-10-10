@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { Suspense, lazy, useState } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
-import { Alunos } from './components/Alunos';
 import { Financeiro } from './components/Financeiro';
 import { Documentos } from './components/Documentos';
 import { Manutencao } from './components/Manutencao';
@@ -11,24 +10,30 @@ import { Motoristas } from './components/Motoristas';
 import { ChecklistEficiencia } from './components/ChecklistEficiencia';
 import { Abastecimento } from './components/Abastecimento';
 import { Responsaveis } from './components/Responsaveis';
-import { Rotas } from './components/Rotas';
-import { Escolas } from './components/Escolas';
 import { Login } from './components/Login';
 import { ConfiguracoesModal } from './components/ConfiguracoesModal';
 
 import { UNAUTHORIZED_EVENT } from './services/api';
-import { Operacao } from './components/Operacao';
 import { AlertaEmergencia } from './components/operacao/AlertaEmergencia';
-import { MotoristaApp } from './motorista/MotoristaApp';
-import { Portal } from './portal/Portal';
 import { Mensagens } from './components/Mensagens';
 import { apiFetch } from './services/api';
 import { Equipe } from './components/Equipe';
 import { Privacidade } from './components/Privacidade';
-import { EscolaPortal } from './escola/EscolaPortal';
 import { Relatorios } from './components/Relatorios';
 import { MeuPlano } from './components/MeuPlano';
 import { Papel, podeVer, papelDoUsuario } from './permissoes';
+
+// Carregados sob demanda: os portais e o app do motorista são entradas separadas,
+// e as telas com mapa (Leaflet) pesam bastante no pacote inicial
+const Alunos = lazy(() => import('./components/Alunos').then(m => ({ default: m.Alunos })));
+const Rotas = lazy(() => import('./components/Rotas').then(m => ({ default: m.Rotas })));
+const Escolas = lazy(() => import('./components/Escolas').then(m => ({ default: m.Escolas })));
+const Operacao = lazy(() => import('./components/Operacao').then(m => ({ default: m.Operacao })));
+const MotoristaApp = lazy(() => import('./motorista/MotoristaApp').then(m => ({ default: m.MotoristaApp })));
+const Portal = lazy(() => import('./portal/Portal').then(m => ({ default: m.Portal })));
+const EscolaPortal = lazy(() => import('./escola/EscolaPortal').then(m => ({ default: m.EscolaPortal })));
+
+const Carregando: React.FC = () => <p className="p-8 text-center text-sm text-slate-400">Carregando…</p>;
 interface User {
   role?: 'admin' | 'motorista' | 'monitor';
   papel?: Papel;
@@ -199,12 +204,12 @@ const App: React.FC = () => {
 
   // Portal da escola: acesso por link, sem login
   if (window.location.pathname.startsWith('/escola')) {
-    return <EscolaPortal />;
+    return <Suspense fallback={<Carregando />}><EscolaPortal /></Suspense>;
   }
 
   // Portal dos pais: acesso por link, sem login
   if (window.location.pathname.startsWith('/acompanhar')) {
-    return <Portal />;
+    return <Suspense fallback={<Carregando />}><Portal /></Suspense>;
   }
 
   if (!user || !token) {
@@ -213,7 +218,7 @@ const App: React.FC = () => {
 
   // Motorista e monitor: app próprio, sem acesso ao painel
   if (noApp) {
-    return <MotoristaApp usuario={user} onSair={handleLogout} />;
+    return <Suspense fallback={<Carregando />}><MotoristaApp usuario={user} onSair={handleLogout} /></Suspense>;
   }
 
   return (
@@ -234,7 +239,7 @@ const App: React.FC = () => {
 
         {podeVer(papel, 'operacao') && <AlertaEmergencia onVer={() => setActiveTab('operacao')} />}
         <main className="flex-1 overflow-y-auto custom-scrollbar print:overflow-visible print:p-0">
-          {renderContent()}
+          <Suspense fallback={<Carregando />}>{renderContent()}</Suspense>
         </main>
       </div>
 
