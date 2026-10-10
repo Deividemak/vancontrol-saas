@@ -3,6 +3,7 @@ import { apiFetch } from '../services/api';
 import { Abas, Botao, Campo, Modal, Selo, inputCls, textareaCls, erroDaResposta } from './ui';
 import { EnderecoComMapa } from './mapa/EnderecoComMapa';
 import { AutorizadosAluno } from './operacao/AutorizadosAluno';
+import { ResponsaveisDoAluno } from './familia/Familia';
 import { Endereco, enderecoDe, enderecoVazio, statusGeo, GeoStatus } from '../services/geo';
 
 type Turno = 'Manhã' | 'Tarde' | 'Integral' | 'Noite';
@@ -107,7 +108,7 @@ const Avatar: React.FC<{ nome: string; foto?: string | null; tamanho?: string }>
     </div>
   );
 
-export const Alunos: React.FC = () => {
+export const Alunos: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNavigate }) => {
   const [students, setStudents] = useState<Student[]>([]);
   const [schools, setSchools] = useState<School[]>([]);
   const [responsibles, setResponsibles] = useState<Responsible[]>([]);
@@ -365,8 +366,19 @@ export const Alunos: React.FC = () => {
               { id: 'endereco', label: 'Endereço', icone: 'location_on', alerta: f.endereco.geo_status === 'pendente' || f.endereco.geo_status === 'falhou' },
               { id: 'saude', label: 'Saúde', icone: 'medical_information' },
               { id: 'emergencia', label: 'Emergência', icone: 'emergency', alerta: f.contatos_emergencia.length === 0 },
-              ...(editandoId ? [{ id: 'retirada', label: 'Quem busca', icone: 'how_to_reg' }] : []),
+              ...(editandoId ? [
+                { id: 'responsaveis', label: 'Responsáveis', icone: 'family_restroom' },
+                { id: 'retirada', label: 'Quem busca', icone: 'how_to_reg' },
+              ] : []),
             ]} />
+            {aba === 'responsaveis' && editandoId && (
+              <ResponsaveisDoAluno
+                alunoId={editandoId}
+                alterado={String(students.find(s => s.id === editandoId)?.responsavel_id || '') !== f.responsavel_id}
+                onEscolher={() => setAba('dados')}
+                onCadastrar={onNavigate ? () => { setAberto(false); onNavigate('responsaveis'); } : undefined}
+              />
+            )}
             {aba === 'retirada' && editandoId && <AutorizadosAluno alunoId={editandoId} />}
 
             {aba === 'dados' && (

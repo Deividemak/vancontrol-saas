@@ -93,6 +93,48 @@ responsaveisRouter.post('/', handler(async (req, res, conn) => {
     }
 }, 'Erro ao criar responsável'));
 
+// Família do responsável (só leitura): filhos com escola, rota e mensalidade.
+// Valores só para quem vê o financeiro (dono e financeiro).
+responsaveisRouter.get('/:id/familia', handler(async (req, res, conn) => {
+    const id = await daEmpresa(conn, 'responsaveis', parseId(req), { nome: 'Responsável' });
+    const emp = empresaId();
+    const veValores = ['dono', 'financeiro'].includes(req.user?.papel);
+    const alunos = await conn.query(`
+        SELECT a.id, a.nome, a.turno, a.status, a.suspenso, a.valor_mensalidade, a.dia_vencimento, e.nome AS escola_nome
+        FROM alunos a LEFT JOIN escolas e ON e.id = a.escola_id AND e.empresa_id = a.empresa_id
+        WHERE a.empresa_id = ? AND a.responsavel_id = ? AND a.anonimizado_em IS NULL ORDER BY a.nome`, [emp, id]);
+    const ids = alunos.map(a => a.id);
+    const rotas = ids.length ? await conn.query(`
+        SELECT ra.aluno_id, r.nome, r.tipo, TIME_FORMAT(ra.hora_prevista, '%H:%i') AS hora
+        FROM rota_alunos ra JOIN rotas r ON r.id = ra.rota_id AND r.empresa_id = ?
+        WHERE ra.aluno_id IN (?) AND r.status = 'Ativa' ORDER BY r.hora_saida`, [emp, ids]) : [];
+    const abertas = veValores && ids.length ? await conn.query(`
+        SELECT aluno_id, COUNT(*) AS qtd, COALESCE(SUM(valor), 0) AS total, SUM(status = 'Atrasado') AS atrasadas
+        FROM mensalidades WHERE empresa_id = ? AND aluno_id IN (?) AND status IN ('Pendente', 'Atrasado') GROUP BY aluno_id`, [emp, ids]) : [];
+
+    const lista = alunos.map(a => {
+        const ab = abertas.find(x => x.aluno_id === a.id);
+        return {
+            id: a.id, nome: a.nome, turno: a.turno, status: a.status, suspenso: !!a.suspenso, escola_nome: a.escola_nome,
+            rotas: rotas.filter(r => r.aluno_id === a.id).map(r => ({ nome: r.nome, tipo: r.tipo, hora: r.hora })),
+            ...(veValores ? {
+                mensalidade: Number(a.valor_mensalidade || 0), dia_vencimento: a.dia_vencimento,
+                em_aberto: { qtd: Number(ab?.qtd || 0), total: Number(ab?.total || 0), atrasadas: Number(ab?.atrasadas || 0) },
+            } : {}),
+        };
+    });
+    const cobrados = lista.filter(a => a.status === 'Ativo' && !a.suspenso);
+    res.json({
+        alunos: lista,
+        ve_valores: veValores,
+        total: veValores ? {
+            mensalidades: cobrados.reduce((s, a) => s + (a.mensalidade || 0), 0),
+            em_aberto: lista.reduce((s, a) => s + (a.em_aberto?.total || 0), 0),
+            atrasadas: lista.reduce((s, a) => s + (a.em_aberto?.atrasadas || 0), 0),
+        } : null,
+    });
+}, 'Erro ao buscar a família do responsável'));
+
 responsaveisRouter.put('/:id', handler(async (req, res, conn) => {
     const id = await daEmpresa(conn, 'responsaveis', parseId(req), { nome: 'Responsável' });
     const d = dadosResponsavel(req.body || {});

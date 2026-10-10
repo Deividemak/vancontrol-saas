@@ -126,7 +126,7 @@ const App: React.FC = () => {
       case 'dashboard':
         return <Dashboard />;
       case 'alunos':
-        return <Alunos />;
+        return <Alunos onNavigate={setActiveTab} />;
       case 'financeiro':
         return <Financeiro />;
       case 'manutencao':

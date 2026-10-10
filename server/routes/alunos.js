@@ -190,6 +190,25 @@ router.delete('/:id', handler(async (req, res, conn) => {
     res.json({ message: 'Aluno excluído com sucesso' });
 }, 'Erro ao excluir aluno'));
 
+// Família do aluno (só leitura): responsável ligado e irmãos com o mesmo responsável
+router.get('/:id/familia', handler(async (req, res, conn) => {
+    const id = await daEmpresa(conn, 'alunos', parseId(req), { nome: 'Aluno' });
+    const emp = empresaId();
+    const [a] = await conn.query('SELECT responsavel_id, responsavel_telefone FROM alunos WHERE id = ? AND empresa_id = ?', [id, emp]);
+    const responsaveis = a.responsavel_id ? await conn.query(`
+        SELECT id, nome, telefone, email, status, whatsapp_ativo, DATE_FORMAT(portal_ultimo_acesso, '%Y-%m-%dT%H:%i:%s') AS portal_ultimo_acesso
+        FROM responsaveis WHERE id = ? AND empresa_id = ? AND anonimizado_em IS NULL`, [a.responsavel_id, emp]) : [];
+    const irmaos = a.responsavel_id ? await conn.query(`
+        SELECT id, nome, status FROM alunos
+        WHERE empresa_id = ? AND responsavel_id = ? AND id <> ? AND anonimizado_em IS NULL ORDER BY nome`, [emp, a.responsavel_id, id]) : [];
+    res.json({
+        // o responsável ligado ao aluno é o principal: recebe os avisos e as cobranças
+        responsaveis: responsaveis.map(r => ({ ...r, principal: true, whatsapp_ativo: r.whatsapp_ativo === null || r.whatsapp_ativo === undefined ? true : !!r.whatsapp_ativo })),
+        telefone_avulso: a.responsavel_id ? null : (a.responsavel_telefone || null),
+        irmaos,
+    });
+}, 'Erro ao buscar a família do aluno'));
+
 // Autorizados a buscar/receber o aluno
 router.get('/:id/autorizados', handler(async (req, res, conn) => {
     const rows = await conn.query(`

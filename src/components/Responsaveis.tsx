@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 
 import { apiFetch } from '../services/api';
 import { PortalResponsavel } from './operacao/PortalResponsavel';
+import { FamiliaResponsavel } from './familia/Familia';
 interface Responsible {
   id: number;
   nome: string;
@@ -22,6 +23,7 @@ export const Responsaveis: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingRes, setEditingRes] = useState<Responsible | null>(null);
   const [portalDe, setPortalDe] = useState<Responsible | null>(null);
+  const [familiaDe, setFamiliaDe] = useState<Responsible | null>(null);
   const [formData, setFormData] = useState({
     nome: '',
     email: '',
@@ -153,7 +155,7 @@ export const Responsaveis: React.FC = () => {
                 {responsibles.map((res) => (
                   <tr key={res.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
                     <td className="px-6 py-5">
-                      <div className="text-sm font-bold text-slate-900 dark:text-slate-100">{res.nome}</div>
+                      <button onClick={() => setFamiliaDe(res)} className="text-sm font-bold text-slate-900 dark:text-slate-100 hover:text-primary hover:underline text-left" title="Ver a família">{res.nome}</button>
                       <div className="text-xs text-slate-500">{res.email || 'Sem email'}</div>
                     </td>
                     <td className="px-6 py-5">
@@ -170,9 +172,9 @@ export const Responsaveis: React.FC = () => {
                     </td>
                     <td className="px-6 py-5">
                       <div className="flex flex-col gap-1">
-                        <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-md text-xs font-bold text-primary w-fit">
+                        <button onClick={() => setFamiliaDe(res)} title="Ver a família" className="px-2 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-primary/10 rounded-md text-xs font-bold text-primary w-fit">
                           {res.total_alunos} {res.total_alunos === 1 ? 'Aluno' : 'Alunos'}
-                        </span>
+                        </button>
                         {res.alunos_nomes && (
                           <div className="text-[10px] text-slate-500 font-medium truncate max-w-[200px]" title={res.alunos_nomes}>
                             {res.alunos_nomes}
@@ -189,6 +191,13 @@ export const Responsaveis: React.FC = () => {
                     </td>
                     <td className="px-6 py-5 text-right">
                       <div className="flex items-center justify-end gap-2 text-slate-400">
+                        <button
+                          onClick={() => setFamiliaDe(res)}
+                          title="Família: filhos, escola, rota e mensalidade"
+                          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg hover:text-primary transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[20px]">family_restroom</span>
+                        </button>
                         <button
                           onClick={() => setPortalDe(res)}
                           title="Portal e avisos no WhatsApp"
@@ -300,6 +309,7 @@ export const Responsaveis: React.FC = () => {
         </div>
       )}
       <PortalResponsavel resp={portalDe} onFechar={() => setPortalDe(null)} onMudou={fetchData} />
+      <FamiliaResponsavel resp={familiaDe} onFechar={() => setFamiliaDe(null)} onAbrirPortal={() => { setPortalDe(familiaDe); setFamiliaDe(null); }} />
     </div>
   );
 };
