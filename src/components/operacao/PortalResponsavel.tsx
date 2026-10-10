@@ -2,12 +2,14 @@
 import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../../services/api';
 import { Botao, Modal, inputCls, erroDaResposta } from '../ui';
+import { useCopiar, linkNesteEndereco } from '../../utils/copiar';
 
 export const PortalResponsavel: React.FC<{ resp: { id: number; nome: string; whatsapp_ativo?: boolean; portal_ultimo_acesso?: string | null } | null; onFechar: () => void; onMudou: () => void }> = ({ resp, onFechar, onMudou }) => {
   const [link, setLink] = useState('');
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [zap, setZap] = useState(true);
+  const { copiado, copiar } = useCopiar();
 
   const pedir = async (corpo: Record<string, unknown>) => {
     if (!resp) return;
@@ -17,7 +19,7 @@ export const PortalResponsavel: React.FC<{ resp: { id: number; nome: string; wha
     setOcupado(false);
     if (!r.ok) { setMsg({ ok: false, t: await erroDaResposta(r, 'Erro') }); return; }
     const j = await r.json();
-    setLink(j.link);
+    setLink(linkNesteEndereco(j.link));
     if (corpo.enviar) setMsg({ ok: true, t: 'Link enviado no WhatsApp do responsável.' });
     if (corpo.novo) setMsg({ ok: true, t: 'Novo link gerado. O anterior não funciona mais.' });
   };
@@ -40,7 +42,7 @@ export const PortalResponsavel: React.FC<{ resp: { id: number; nome: string; wha
           </p>
           <div className="flex gap-2">
             <input readOnly value={link} placeholder="Gerando..." className={`${inputCls} font-mono !text-xs`} onFocus={e => e.target.select()} />
-            <Botao variante="secundario" icone="content_copy" disabled={!link} onClick={() => { navigator.clipboard?.writeText(link); setMsg({ ok: true, t: 'Link copiado.' }); }}>Copiar</Botao>
+            <Botao variante="secundario" icone={copiado ? 'check' : 'content_copy'} disabled={!link} onClick={() => copiar(link)}>{copiado ? 'Copiado!' : 'Copiar'}</Botao>
           </div>
           <div className="flex flex-wrap gap-2">
             <Botao icone="send" carregando={ocupado} onClick={() => pedir({ enviar: true })}>Enviar no WhatsApp</Botao>

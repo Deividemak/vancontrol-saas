@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../services/api';
 import { papelAtual } from '../permissoes';
 import { Abas, Botao, Campo, Selo, CorSelo, inputCls, erroDaResposta } from './ui';
+import { useCopiar } from '../utils/copiar';
 
 interface Conversa { chave: string; responsavel_id: number | null; nome: string | null; alunos: string | null; telefone: string | null; nao_lidas: number; ultima: { texto: string; direcao: string; tipo: string; criado_em: string } | null; }
 interface Msg { id: number; direcao: 'entrada' | 'saida'; canal: string; tipo: string; texto: string; criado_em: string; usuario_nome: string | null; envio_status: string | null; envio_erro: string | null; }
@@ -241,6 +242,7 @@ const ConfigWhatsapp: React.FC<{ onSalvo: () => void }> = ({ onSalvo }) => {
 
 const Config: React.FC = () => {
   const [st, setSt] = useState<any>(null);
+  const { copiado, copiar } = useCopiar();
   const [tel, setTel] = useState('');
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
   const carregarStatus = () => apiFetch('/api/mensagens/status').then(r => r.json()).then(setSt);
@@ -274,7 +276,7 @@ const Config: React.FC = () => {
             <p className="text-sm text-slate-500">Na Z-API, em <b>Webhooks → Ao receber</b>, cole este endereço (precisa ser HTTPS e acessível pela internet). Ele é exclusivo da sua empresa:</p>
             <div className="flex gap-2">
               <input readOnly className={`${inputCls} font-mono !text-xs`} value={st.webhook_url} onFocus={e => e.target.select()} />
-              <Botao variante="secundario" icone="content_copy" onClick={() => navigator.clipboard?.writeText(st.webhook_url)}>Copiar</Botao>
+              <Botao variante="secundario" icone={copiado ? 'check' : 'content_copy'} onClick={() => copiar(st.webhook_url)}>{copiado ? 'Copiado!' : 'Copiar'}</Botao>
             </div>
           </>
         ) : (

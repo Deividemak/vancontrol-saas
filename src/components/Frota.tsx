@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../services/api';
 import { Modal, Abas, Botao, Campo, Selo, inputCls, textareaCls, erroDaResposta, type CorSelo } from './ui';
+import { useCopiar } from '../utils/copiar';
 
 type Alerta = { nome: string; situacao: string; dias?: number | null; faltam_km?: number | null; faltam_dias?: number | null };
 interface Van {
@@ -483,6 +484,7 @@ export const Frota: React.FC = () => {
   const [form, setForm] = useState<{ aberto: boolean; van: Van | null }>({ aberto: false, van: null });
   const [fichaId, setFichaId] = useState<number | null>(null);
   const [rastreador, setRastreador] = useState<{ url: string } | null>(null);
+  const { copiado, copiar } = useCopiar();
   const [versao, setVersao] = useState(0);
 
   const carregar = useCallback(async () => {
@@ -529,7 +531,7 @@ export const Frota: React.FC = () => {
           <p className="text-slate-500">Se a van tiver rastreador, cadastre o IMEI/ID dele no veículo e configure o rastreador (ou a plataforma dele, como o Traccar) para enviar as posições para o endereço abaixo. As posições entram no mapa ao vivo e no replay junto com o celular do motorista.</p>
           <div className="flex gap-2">
             <input readOnly className="flex-1 bg-slate-50 dark:bg-slate-800 rounded-lg h-10 px-3 font-mono text-xs" value={rastreador.url} onFocus={e => e.target.select()} aria-label="Endereço do rastreador" />
-            <Botao variante="secundario" onClick={() => navigator.clipboard?.writeText(rastreador.url)}>Copiar</Botao>
+            <Botao variante="secundario" icone={copiado ? 'check' : undefined} onClick={() => copiar(rastreador.url)}>{copiado ? 'Copiado!' : 'Copiar'}</Botao>
           </div>
         </div>
       )}

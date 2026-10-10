@@ -4,6 +4,7 @@ import { Abas, Botao, Campo, Modal, Selo, inputCls, erroDaResposta } from './ui'
 import { EnderecoComMapa } from './mapa/EnderecoComMapa';
 import { Endereco, enderecoDe, enderecoVazio, statusGeo, GeoStatus } from '../services/geo';
 import { Calendario } from './escolas/Calendario';
+import { useCopiar, linkNesteEndereco } from '../utils/copiar';
 
 const TURNOS = ['Manhã', 'Tarde', 'Integral', 'Noite'] as const;
 interface Horario { turno: string; entrada: string; saida: string; }
@@ -25,10 +26,11 @@ interface School {
 export const Escolas: React.FC = () => {
   const [schools, setSchools] = useState<School[]>([]);
   const [portal, setPortal] = useState<{ nome: string; id: number; link: string } | null>(null);
+  const { copiado, copiar } = useCopiar();
   const abrirPortal = async (id: number, nome: string, novo = false) => {
     const r = await apiFetch(`/api/escolas/${id}/portal`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ novo }) });
     const j = await r.json();
-    if (r.ok) setPortal({ id, nome, link: j.link }); else alert(j.error || 'Erro ao gerar link');
+    if (r.ok) setPortal({ id, nome, link: linkNesteEndereco(j.link) }); else alert(j.error || 'Erro ao gerar link');
   };
 
   const [loading, setLoading] = useState(true);
@@ -346,7 +348,7 @@ export const Escolas: React.FC = () => {
             <input readOnly className="w-full bg-slate-50 dark:bg-slate-800 rounded-lg h-10 px-3 font-mono text-xs" value={portal.link} onFocus={e => e.target.select()} aria-label="Link do portal da escola" />
             <div className="flex flex-wrap gap-2 justify-end">
               <button className="px-4 h-10 rounded-lg font-bold text-rose-600" onClick={() => { if (confirm('Gerar um link novo? O link antigo para de funcionar.')) abrirPortal(portal.id, portal.nome, true); }}>Gerar link novo</button>
-              <button className="px-4 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 font-bold" onClick={() => navigator.clipboard?.writeText(portal.link)}>Copiar</button>
+              <button className="px-4 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 font-bold" onClick={() => copiar(portal.link)}>{copiado ? 'Copiado!' : 'Copiar'}</button>
               <button className="px-4 h-10 rounded-lg bg-primary text-white font-bold" onClick={() => setPortal(null)}>Fechar</button>
             </div>
           </div>

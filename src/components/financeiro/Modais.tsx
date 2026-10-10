@@ -4,6 +4,7 @@ import { apiFetch } from '../../services/api';
 import { Modal, Botao, Campo, inputCls, erroDaResposta } from '../ui';
 import { QrCode } from './QrCode';
 import { BRL, dataBR, competencia } from './util';
+import { useCopiar } from '../../utils/copiar';
 
 export interface Cobranca {
   mensalidade_id: number; aluno_nome: string; vencimento: string; competencia: string; status: string;
@@ -13,12 +14,9 @@ export interface Cobranca {
 
 /** Bloco de pagamento: QR + copia e cola (+ links do Asaas). Usado no painel e no portal. */
 export const BlocoPix: React.FC<{ c: Cobranca }> = ({ c }) => {
-  const [copiado, setCopiado] = useState(false);
-  const copiar = async () => {
-    try { await navigator.clipboard.writeText(c.pix_copia_cola || ''); } catch { /* sem permissão: o campo fica selecionável */ }
-    setCopiado(true);
-    setTimeout(() => setCopiado(false), 2500);
-  };
+  const { copiado, copiar: copiarTexto } = useCopiar();
+  // se não conseguir copiar, o campo do código continua selecionável
+  const copiar = () => copiarTexto(c.pix_copia_cola || '');
   return (
     <div className="space-y-4">
       <div className="text-center">
@@ -41,7 +39,7 @@ export const BlocoPix: React.FC<{ c: Cobranca }> = ({ c }) => {
           <Campo label="Pix copia e cola">
             <div className="flex gap-2">
               <input readOnly value={c.pix_copia_cola} onFocus={e => e.currentTarget.select()} className={`${inputCls} font-mono text-xs`} aria-label="Pix copia e cola" />
-              <Botao type="button" icone={copiado ? 'check' : 'content_copy'} onClick={copiar}>{copiado ? 'Copiado' : 'Copiar'}</Botao>
+              <Botao type="button" icone={copiado ? 'check' : 'content_copy'} onClick={copiar}>{copiado ? 'Copiado!' : 'Copiar'}</Botao>
             </div>
           </Campo>
         </>
