@@ -723,6 +723,13 @@ const MIGRACOES = [
             `);
         },
     },
+    {
+        // Central de checklists: quando e como o problema foi resolvido
+        id: '2026-10-10-checklist-central',
+        async up(conn) {
+            await addColunas(conn, 'checklist_diario', [['resolvido_em', 'DATETIME NULL'], ['resolucao_obs', 'TEXT NULL']]);
+        },
+    },
 ];
 
 export async function rodarMigracoes(pool) {

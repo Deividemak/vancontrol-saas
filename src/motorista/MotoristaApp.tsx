@@ -24,6 +24,7 @@ export const MotoristaApp: React.FC<Props> = ({ usuario, onSair }) => {
   const [erro, setErro] = useState('');
   const [viagemAberta, setViagemAberta] = useState<number | null>(() => lerCache<number>('viagem_aberta'));
   const [checklistDe, setChecklistDe] = useState<RotaHoje | null>(null);
+  const [erroChecklist, setErroChecklist] = useState('');
   const [iniciando, setIniciando] = useState<number | null>(null);
   const [senhaAberta, setSenhaAberta] = useState(false);
   const fila = useFila();
@@ -47,6 +48,7 @@ export const MotoristaApp: React.FC<Props> = ({ usuario, onSair }) => {
   const iniciar = async (rota: RotaHoje, checklist?: Record<string, string>) => {
     setIniciando(rota.id);
     setErro('');
+    setErroChecklist('');
     const pos = ultimaPosicao();
     try {
       const res = await apiFetch('/api/motorista/viagens', {
@@ -55,7 +57,9 @@ export const MotoristaApp: React.FC<Props> = ({ usuario, onSair }) => {
       });
       const j = await res.json();
       if (!res.ok) {
-        if (/checklist/i.test(j.error || '')) setChecklistDe(rota);
+        // com a folha do checklist aberta, o erro aparece nela (ex.: falta descrever o problema)
+        if (checklist) setErroChecklist(j.error || 'Erro ao iniciar');
+        else if (/checklist/i.test(j.error || '')) setChecklistDe(rota);
         else setErro(j.error || 'Erro ao iniciar');
         return;
       }
@@ -71,7 +75,8 @@ export const MotoristaApp: React.FC<Props> = ({ usuario, onSair }) => {
       setChecklistDe(null);
       setViagemAberta(d.viagem.id);
     } catch {
-      setErro('Sem sinal. Para iniciar a viagem é preciso internet (depois o app funciona sem sinal).');
+      const msg = 'Sem sinal. Para iniciar a viagem é preciso internet (depois o app funciona sem sinal).';
+      if (checklist) setErroChecklist(msg); else setErro(msg);
     } finally {
       setIniciando(null);
     }
@@ -150,18 +155,19 @@ export const MotoristaApp: React.FC<Props> = ({ usuario, onSair }) => {
         </button>
       </main>
 
-      <ChecklistFolha rota={checklistDe} onFechar={() => setChecklistDe(null)} enviando={iniciando !== null} onConfirmar={(r, ck) => iniciar(r, ck)} />
+      <ChecklistFolha rota={checklistDe} onFechar={() => { setChecklistDe(null); setErroChecklist(''); }} enviando={iniciando !== null} erro={erroChecklist} onConfirmar={(r, ck) => iniciar(r, ck)} />
       <TrocarSenha aberta={senhaAberta} onFechar={() => setSenhaAberta(false)} />
     </div>
   );
 };
 
-const ChecklistFolha: React.FC<{ rota: RotaHoje | null; onFechar: () => void; enviando: boolean; onConfirmar: (r: RotaHoje, ck: Record<string, string>) => void }> = ({ rota, onFechar, enviando, onConfirmar }) => {
+const ChecklistFolha: React.FC<{ rota: RotaHoje | null; onFechar: () => void; enviando: boolean; erro: string; onConfirmar: (r: RotaHoje, ck: Record<string, string>) => void }> = ({ rota, onFechar, enviando, erro, onConfirmar }) => {
   const [valores, setValores] = useState<Record<string, 'ok' | 'error' | ''>>({});
   const [obs, setObs] = useState('');
   useEffect(() => { if (rota) { setValores({}); setObs(''); } }, [rota]);
   const completo = ITENS.every(i => valores[i.campo]);
   const problemas = ITENS.filter(i => valores[i.campo] === 'error');
+  const faltaDescricao = problemas.length > 0 && !obs.trim();
   return (
     <Folha aberta={!!rota} onFechar={onFechar} titulo={`Checklist · ${rota?.placa || ''}`}>
       <div className="space-y-3">
@@ -176,15 +182,20 @@ const ChecklistFolha: React.FC<{ rota: RotaHoje | null; onFechar: () => void; en
           </div>
         ))}
         {problemas.length > 0 && (
-          <textarea value={obs} onChange={e => setObs(e.target.value)} placeholder="Descreva o problema" className="w-full min-h-20 rounded-xl bg-slate-100 dark:bg-slate-800 border-none p-3" />
+          <div className="space-y-1">
+            <label htmlFor="ck-obs" className="block text-sm font-black">Descreva o problema <span className="text-rose-600">(obrigatório)</span></label>
+            <textarea id="ck-obs" required value={obs} onChange={e => setObs(e.target.value)} placeholder="Ex: pneu dianteiro direito murcho"
+              className={`w-full min-h-20 rounded-xl bg-slate-100 dark:bg-slate-800 border-2 p-3 ${faltaDescricao ? 'border-rose-400' : 'border-transparent'}`} />
+          </div>
         )}
         {problemas.length > 0 && (
           <p className="text-sm font-bold text-rose-600">Problema em: {problemas.map(p => p.label).join(', ')}. Se não for seguro sair, avise a empresa.</p>
         )}
-        <button disabled={!completo || enviando || (problemas.length > 0 && !obs.trim())}
+        {erro && <p role="alert" className="text-sm font-bold text-rose-600 bg-rose-500/10 rounded-xl px-3 py-2">{erro}</p>}
+        <button disabled={!completo || enviando || faltaDescricao}
           onClick={() => rota && onConfirmar(rota, { ...valores, observacoes: obs } as Record<string, string>)}
           className="w-full h-14 rounded-2xl bg-primary text-white text-lg font-black disabled:opacity-40">
-          {enviando ? 'Iniciando...' : completo ? 'Confirmar e iniciar viagem' : 'Marque todos os itens'}
+          {enviando ? 'Iniciando...' : !completo ? 'Marque todos os itens' : faltaDescricao ? 'Descreva o problema para continuar' : 'Confirmar e iniciar viagem'}
         </button>
       </div>
     </Folha>

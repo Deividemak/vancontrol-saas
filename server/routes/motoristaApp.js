@@ -14,10 +14,9 @@ import { bloqueiosDaViagem } from '../services/documentos.js';
 import { lerConfig } from '../services/config.js';
 import { empresaId } from '../lib/tenant.js';
 import { registrarAcesso } from '../services/lgpd.js';
-import { manutencaoDoChecklist } from '../services/frota.js';
+import { manutencaoDoChecklist, validarChecklist, alertarChecklistCritico, ITENS_CHECKLIST } from '../services/frota.js';
 
 const router = Router();
-const ITENS_CHECKLIST = ['freios', 'pneus', 'oleo', 'luzes', 'limpeza', 'cintos', 'extintor'];
 const TIPOS_OCORRENCIA = ['atraso', 'mal_estar', 'comportamento', 'mecanico', 'transito', 'acidente', 'outro'];
 const MAX_FOTO = 1.5 * 1024 * 1024;
 
@@ -146,12 +145,15 @@ router.post('/viagens', handler(async (req, res, conn) => {
         const [feito] = await conn.query('SELECT id FROM checklist_diario WHERE veiculo_id = ? AND empresa_id = ? AND DATE(data_registro) = ? ORDER BY id DESC LIMIT 1', [rota.veiculo_id, empresaId(), data]);
         const ck = req.body.checklist;
         if (ck) {
+            const obs = str(ck.observacoes, 2000);
+            validarChecklist(ck, obs);
             const vals = ITENS_CHECKLIST.map(i => (ck[i] === 'error' ? 'error' : 'ok'));
             const r = await conn.query(
                 `INSERT INTO checklist_diario (empresa_id, veiculo_id, motorista_id, ${ITENS_CHECKLIST.join(', ')}, observacoes) VALUES (?, ?, ?, ${ITENS_CHECKLIST.map(() => '?').join(', ')}, ?)`,
-                [empresaId(), rota.veiculo_id, req.motorista.id, ...vals, str(ck.observacoes, 2000)]);
+                [empresaId(), rota.veiculo_id, req.motorista.id, ...vals, obs]);
             checklistId = Number(r.insertId);
-            await manutencaoDoChecklist(conn, { veiculoId: rota.veiculo_id, checklistId, valores: ck, observacoes: str(ck.observacoes, 2000) });
+            await manutencaoDoChecklist(conn, { veiculoId: rota.veiculo_id, checklistId, valores: ck, observacoes: obs });
+            await alertarChecklistCritico(conn, { veiculoId: rota.veiculo_id, motoristaId: req.motorista.id, valores: ck, observacoes: obs });
         } else if (feito) {
             checklistId = feito.id;
         } else {

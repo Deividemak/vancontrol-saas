@@ -184,7 +184,7 @@ const App: React.FC = () => {
       rotas: 'Rotas',
       manutencao: 'Manutenção',
       escolas: 'Escolas',
-      checklist: 'Checklist e Eficiência',
+      checklist: 'Checklists',
       abastecimento: 'Histórico de Abastecimento',
       operacao: 'Operação do dia',
       mensagens: 'Mensagens',

@@ -1,8 +1,12 @@
 // Frota: veículos, manutenção, abastecimentos e checklists (antes ficavam no index.js)
 import { Router } from 'express';
 import { handler, HttpError, parseId, str, toId, transacao, data as dataValida } from '../lib/http.js';
-import { painelFrota, fichaVeiculo, planosDaEmpresa, desempenho, manutencaoDoChecklist, PLANOS_PADRAO } from '../services/frota.js';
+import {
+    painelFrota, fichaVeiculo, planosDaEmpresa, desempenho, manutencaoDoChecklist, PLANOS_PADRAO,
+    ITENS_CHECKLIST, problemasDoChecklist, validarChecklist, alertarChecklistCritico,
+} from '../services/frota.js';
 import { hojeBR } from '../services/viagens.js';
+import { escalaDoDia } from '../services/escala.js';
 import { empresaId, daEmpresa, refDaEmpresa } from '../lib/tenant.js';
 import { conferirLimiteVans } from '../services/planos.js';
 import { urlBase } from '../services/responsaveis.js';
@@ -306,30 +310,123 @@ abastecimentosRouter.delete('/:id', handler(async (req, res, conn) => {
 }, 'Erro interno ao deletar'));
 
 // ---------- Checklists ----------
+const SQL_PROBLEMA = `(${ITENS_CHECKLIST.map(i => `c.${i} = 'error'`).join(' OR ')})`;
+const COLUNAS_ITENS = ITENS_CHECKLIST.map(i => `c.${i}`).join(', ');
+const POR_PAGINA = 30;
+
+// Situação de hoje: cada van escalada (rota ativa) ou que viajou hoje, com o checklist do dia
+checklistsRouter.get('/hoje', handler(async (req, res, conn) => {
+    const emp = empresaId(), hoje = hojeBR();
+    const previsto = new Map(); // veiculo_id -> motorista previsto para hoje
+    for (const e of (await escalaDoDia(conn, hoje)).values()) {
+        if (e.veiculo_id && !previsto.get(e.veiculo_id)) previsto.set(e.veiculo_id, e.motorista_id || null);
+    }
+    const viagens = await conn.query('SELECT veiculo_id, motorista_id FROM viagens WHERE empresa_id = ? AND data = ? AND veiculo_id IS NOT NULL', [emp, hoje]);
+    for (const v of viagens) if (!previsto.get(v.veiculo_id)) previsto.set(v.veiculo_id, v.motorista_id || null);
+    const ids = [...previsto.keys()];
+    if (!ids.length) return res.json({ data: hoje, contadores: { total: 0, feitos: 0, pendentes: 0, com_problema: 0 }, vans: [] });
+
+    const vans = await conn.query('SELECT id, placa, modelo, motorista_id FROM frota WHERE empresa_id = ? AND id IN (?)', [emp, ids]);
+    const checklists = await conn.query(`
+        SELECT c.id, c.veiculo_id, c.motorista_id, c.observacoes, c.resolvido, DATE_FORMAT(c.data_registro,'%H:%i') AS hora, ${COLUNAS_ITENS}
+        FROM checklist_diario c WHERE c.empresa_id = ? AND DATE(c.data_registro) = ? AND c.veiculo_id IN (?) ORDER BY c.id DESC`, [emp, hoje, ids]);
+    const motoristaIds = [...new Set([...vans.map(v => previsto.get(v.id) || v.motorista_id), ...checklists.map(c => c.motorista_id)].filter(Boolean))];
+    const nomes = new Map(motoristaIds.length
+        ? (await conn.query('SELECT id, nome FROM motoristas WHERE empresa_id = ? AND id IN (?)', [emp, motoristaIds])).map(m => [m.id, m.nome])
+        : []);
+    const saiu = new Set(viagens.map(v => v.veiculo_id));
+
+    const ordem = { pendente: 0, feito_problema: 1, feito_ok: 2 };
+    const lista = vans.map(v => {
+        const c = checklists.find(x => x.veiculo_id === v.id); // o mais recente do dia
+        const problemas = c ? problemasDoChecklist(c) : [];
+        const motoristaId = c?.motorista_id || previsto.get(v.id) || v.motorista_id || null;
+        return {
+            veiculo_id: v.id, placa: v.placa, modelo: v.modelo,
+            motorista_id: motoristaId, motorista_nome: nomes.get(motoristaId) || null,
+            situacao: !c ? 'pendente' : problemas.length ? 'feito_problema' : 'feito_ok',
+            checklist_id: c?.id || null, hora: c?.hora || null, problemas, observacoes: c?.observacoes || null,
+            resolvido: !!c?.resolvido, saiu_hoje: saiu.has(v.id),
+        };
+    }).sort((a, b) => ordem[a.situacao] - ordem[b.situacao] || a.placa.localeCompare(b.placa));
+
+    res.json({
+        data: hoje,
+        contadores: {
+            total: lista.length,
+            feitos: lista.filter(v => v.situacao !== 'pendente').length,
+            pendentes: lista.filter(v => v.situacao === 'pendente').length,
+            com_problema: lista.filter(v => v.situacao === 'feito_problema').length,
+        },
+        vans: lista,
+    });
+}, 'Erro ao buscar os checklists de hoje'));
+
+// Histórico com filtros e paginação. so_abertos = com problema e ainda não resolvido.
 checklistsRouter.get('/', handler(async (req, res, conn) => {
-    res.json(await conn.query(`
-        SELECT c.id, c.veiculo_id, c.motorista_id, c.data_registro, c.resolvido,
-               c.freios, c.pneus, c.oleo, c.luzes, c.limpeza, c.cintos, c.extintor, c.observacoes,
-               f.placa AS veiculo_placa, m.nome AS motorista_nome
+    const q = req.query;
+    const where = ['c.empresa_id = ?'], args = [empresaId()];
+    const de = dataValida(q.de), ate = dataValida(q.ate);
+    if (de) { where.push('DATE(c.data_registro) >= ?'); args.push(de); }
+    if (ate) { where.push('DATE(c.data_registro) <= ?'); args.push(ate); }
+    if (toId(q.veiculo_id)) { where.push('c.veiculo_id = ?'); args.push(toId(q.veiculo_id)); }
+    if (toId(q.motorista_id)) { where.push('c.motorista_id = ?'); args.push(toId(q.motorista_id)); }
+    if (q.so_problemas === '1' || q.so_abertos === '1') where.push(SQL_PROBLEMA);
+    if (q.so_abertos === '1') where.push('NOT COALESCE(c.resolvido, 0)');
+    const pagina = toId(q.pagina) || 1;
+
+    const [{ n }] = await conn.query(`SELECT COUNT(*) n FROM checklist_diario c WHERE ${where.join(' AND ')}`, args);
+    const rows = await conn.query(`
+        SELECT c.id, c.veiculo_id, c.motorista_id, c.observacoes, c.resolvido, c.resolucao_obs,
+               DATE_FORMAT(c.data_registro,'%Y-%m-%dT%H:%i') AS data, DATE_FORMAT(c.resolvido_em,'%Y-%m-%dT%H:%i') AS resolvido_em,
+               ${COLUNAS_ITENS}, f.placa, f.modelo, m.nome AS motorista_nome,
+               (SELECT mt.id FROM manutencoes mt WHERE mt.checklist_id = c.id AND mt.empresa_id = c.empresa_id ORDER BY mt.id DESC LIMIT 1) AS manutencao_id,
+               (SELECT mt.status FROM manutencoes mt WHERE mt.checklist_id = c.id AND mt.empresa_id = c.empresa_id ORDER BY mt.id DESC LIMIT 1) AS manutencao_status
         FROM checklist_diario c
-        JOIN frota f ON c.veiculo_id = f.id AND f.empresa_id = c.empresa_id
-        JOIN motoristas m ON c.motorista_id = m.id AND m.empresa_id = c.empresa_id
-        WHERE c.empresa_id = ? ORDER BY c.data_registro DESC`, [empresaId()]));
+        LEFT JOIN frota f ON f.id = c.veiculo_id AND f.empresa_id = c.empresa_id
+        LEFT JOIN motoristas m ON m.id = c.motorista_id AND m.empresa_id = c.empresa_id
+        WHERE ${where.join(' AND ')}
+        ORDER BY c.data_registro DESC, c.id DESC LIMIT ? OFFSET ?`, [...args, POR_PAGINA, (pagina - 1) * POR_PAGINA]);
+
+    res.json({
+        total: Number(n), pagina, por_pagina: POR_PAGINA,
+        itens: rows.map(c => ({
+            id: c.id, veiculo_id: c.veiculo_id, placa: c.placa, modelo: c.modelo, motorista_id: c.motorista_id, motorista_nome: c.motorista_nome,
+            data: c.data, observacoes: c.observacoes, problemas: problemasDoChecklist(c),
+            resolvido: !!c.resolvido, resolvido_em: c.resolvido_em, resolucao_obs: c.resolucao_obs,
+            manutencao: c.manutencao_id ? { id: c.manutencao_id, status: c.manutencao_status } : null,
+        })),
+    });
 }, 'Erro ao buscar checklists'));
 
+// Registro manual pelo painel (motorista sem celular)
 checklistsRouter.post('/', handler(async (req, res, conn) => {
     const b = req.body || {};
     const veiculoId = await refDaEmpresa(conn, 'frota', b.veiculo_id, 'Veículo', false);
     const motoristaId = await refDaEmpresa(conn, 'motoristas', b.motorista_id, 'Motorista', false);
-    const r = await conn.query(
-        'INSERT INTO checklist_diario (empresa_id, veiculo_id, motorista_id, freios, pneus, oleo, luzes, limpeza, cintos, extintor, observacoes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [empresaId(), veiculoId, motoristaId, b.freios || 'ok', b.pneus || 'ok', b.oleo || 'ok', b.luzes || 'ok', b.limpeza || 'ok', b.cintos || 'ok', b.extintor || 'ok', b.observacoes || null]);
-    await manutencaoDoChecklist(conn, { veiculoId, checklistId: Number(r.insertId), valores: b, observacoes: b.observacoes });
-    res.status(201).json({ id: Number(r.insertId) });
+    const obs = str(b.observacoes, 2000);
+    validarChecklist(b, obs);
+    const vals = ITENS_CHECKLIST.map(i => (b[i] === 'error' ? 'error' : 'ok'));
+    const id = await transacao(conn, async () => {
+        const r = await conn.query(
+            `INSERT INTO checklist_diario (empresa_id, veiculo_id, motorista_id, ${ITENS_CHECKLIST.join(', ')}, observacoes) VALUES (?, ?, ?, ${ITENS_CHECKLIST.map(() => '?').join(', ')}, ?)`,
+            [empresaId(), veiculoId, motoristaId, ...vals, obs]);
+        const novo = Number(r.insertId);
+        await manutencaoDoChecklist(conn, { veiculoId, checklistId: novo, valores: b, observacoes: obs });
+        return novo;
+    });
+    await alertarChecklistCritico(conn, { veiculoId, motoristaId, valores: b, observacoes: obs });
+    res.status(201).json({ id });
 }, 'Erro ao criar checklist'));
 
+// Problema resolvido: fecha o checklist e conclui a manutenção que ele abriu
 checklistsRouter.put('/:id/resolve', handler(async (req, res, conn) => {
-    const r = await conn.query('UPDATE checklist_diario SET resolvido = true WHERE id = ? AND empresa_id = ?', [parseId(req), empresaId()]);
-    if (!r.affectedRows) throw new HttpError(404, 'Checklist não encontrado');
+    const id = await daEmpresa(conn, 'checklist_diario', parseId(req), { nome: 'Checklist' });
+    const obs = str(req.body?.observacao, 2000);
+    await transacao(conn, async () => {
+        await conn.query('UPDATE checklist_diario SET resolvido = true, resolvido_em = NOW(), resolucao_obs = ? WHERE id = ? AND empresa_id = ?', [obs, id, empresaId()]);
+        await conn.query(`UPDATE manutencoes SET status = 'Concluída', data_conclusao = ?, observacao = CONCAT_WS(CHAR(10), observacao, ?)
+            WHERE checklist_id = ? AND empresa_id = ? AND status IN ('Pendente', 'Em Andamento')`, [hojeBR(), obs ? `Resolvido: ${obs}` : null, id, empresaId()]);
+    });
     res.json({ success: true });
 }, 'Erro ao resolver alerta'));

@@ -2,6 +2,9 @@
 import { empresaId } from '../lib/tenant.js';
 import { hojeBR } from './viagens.js';
 import { painelDocumentos } from './documentos.js';
+import { HttpError } from '../lib/http.js';
+import { lerConfig } from './config.js';
+import { enfileirarTexto } from './notificacoes.js';
 
 const r2 = (v) => Math.round(v * 100) / 100;
 const diasEntre = (a, b) => Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 86400000);
@@ -168,7 +171,6 @@ export async function fichaVeiculo(conn, id) {
         conn.query(`SELECT COALESCE(SUM(custo_total),0) v FROM abastecimentos WHERE empresa_id = ? AND veiculo_id = ? AND DATE_FORMAT(data_abastecimento,'%Y-%m') = ?`, [emp, id, mes]),
         conn.query(`SELECT COALESCE(SUM(custo),0) v FROM manutencoes WHERE empresa_id = ? AND veiculo_id = ? AND status <> 'Cancelada' AND DATE_FORMAT(COALESCE(data_conclusao, data_agendada),'%Y-%m') = ?`, [emp, id, mes]),
     ]);
-    const itens = ['freios', 'pneus', 'oleo', 'luzes', 'limpeza', 'cintos', 'extintor'];
     return {
         veiculo: painel,
         documentos: docs,
@@ -178,13 +180,45 @@ export async function fichaVeiculo(conn, id) {
         desempenho: await desempenho(conn, id),
         custos_mes: { combustivel: Number(comb.v), manutencao: Number(man.v), fixo: Number(painel?.custo_fixo_mensal || 0), total: r2(Number(comb.v) + Number(man.v) + Number(painel?.custo_fixo_mensal || 0)) },
         viagens,
-        checklists: checklists.map(c => ({ id: c.id, data: c.data, resolvido: !!c.resolvido, observacoes: c.observacoes, motorista_nome: c.motorista_nome, problemas: itens.filter(i => c[i] === 'error') })),
+        checklists: checklists.map(c => ({ id: c.id, data: c.data, resolvido: !!c.resolvido, observacoes: c.observacoes, motorista_nome: c.motorista_nome, problemas: problemasDoChecklist(c) })),
     };
+}
+
+export const ITENS_CHECKLIST = ['freios', 'pneus', 'oleo', 'luzes', 'limpeza', 'cintos', 'extintor'];
+const NOMES = { freios: 'freios', pneus: 'pneus', oleo: 'óleo/água', luzes: 'luzes', limpeza: 'limpeza/portas', cintos: 'cintos', extintor: 'extintor/kit' };
+// itens que põem as crianças em risco: avisam o gestor na hora
+const ITENS_CRITICOS = ['freios', 'pneus', 'cintos'];
+
+export const problemasDoChecklist = (valores) => ITENS_CHECKLIST.filter(i => valores?.[i] === 'error');
+
+/** Problema marcado exige descrição. */
+export function validarChecklist(valores, observacoes) {
+    if (problemasDoChecklist(valores).length && !String(observacoes || '').trim()) throw new HttpError(400, 'Descreva o problema encontrado');
+}
+
+/** Problema em freios, pneus ou cintos: WhatsApp na hora para o telefone de alertas da operação. */
+export async function alertarChecklistCritico(conn, { veiculoId, motoristaId, valores, observacoes }) {
+    const criticos = ITENS_CRITICOS.filter(i => valores?.[i] === 'error');
+    if (!criticos.length) return;
+    try {
+        const cfg = await lerConfig(conn, 'operacao');
+        if (!cfg.telefone_alertas) return;
+        const [v] = await conn.query('SELECT placa FROM frota WHERE id = ? AND empresa_id = ?', [veiculoId, empresaId()]);
+        const [m] = motoristaId ? await conn.query('SELECT nome FROM motoristas WHERE id = ? AND empresa_id = ?', [motoristaId, empresaId()]) : [];
+        const texto = `🚨 Checklist com problema grave
+Van: ${v?.placa || '—'}
+Motorista: ${m?.nome || '—'}
+Itens: ${problemasDoChecklist(valores).map(p => NOMES[p]).join(', ')}
+Observação: ${observacoes || '—'}`;
+        await enfileirarTexto(conn, { telefone: cfg.telefone_alertas, texto, tipo: 'alerta' });
+    } catch (err) {
+        // o aviso não pode impedir o registro do checklist
+        console.error('[checklist] falha ao enfileirar alerta:', err.message);
+    }
 }
 
 /** Problema marcado no checklist vira manutenção pendente (para não ser esquecido). */
 export async function manutencaoDoChecklist(conn, { veiculoId, checklistId, valores, observacoes }) {
-    const NOMES = { freios: 'freios', pneus: 'pneus', oleo: 'óleo/água', luzes: 'luzes', limpeza: 'limpeza/portas', cintos: 'cintos', extintor: 'extintor/kit' };
     const problemas = Object.keys(NOMES).filter(k => valores[k] === 'error');
     if (!problemas.length) return null;
     const r = await conn.query(
