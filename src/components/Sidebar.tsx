@@ -39,15 +39,17 @@ interface SidebarProps {
   onSair?: () => void;
 }
 
-const ITENS: { aba: string; icon: string; label: string }[] = [
+type Item = { aba: string; icon: string; label: string };
+
+// itens com "grupo" viram um grupo que abre e fecha (GRUPOS abaixo)
+const ITENS: (Item | { grupo: string })[] = [
   { aba: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
   { aba: 'operacao', icon: 'radar', label: 'Operação' },
   { aba: 'mensagens', icon: 'forum', label: 'Mensagens' },
-  { aba: 'frota', icon: 'airport_shuttle', label: 'Frota' }, // vira o grupo da frota (FROTA abaixo)
+  { grupo: 'frota' },
   { aba: 'documentos', icon: 'folder_shared', label: 'Documentos' },
   { aba: 'motoristas', icon: 'badge', label: 'Motoristas' },
-  { aba: 'alunos', icon: 'groups', label: 'Alunos' },
-  { aba: 'responsaveis', icon: 'family_history', label: 'Responsáveis' },
+  { grupo: 'alunos' },
   { aba: 'financeiro', icon: 'account_balance_wallet', label: 'Financeiro' },
   { aba: 'rotas', icon: 'map', label: 'Rotas' },
   { aba: 'escolas', icon: 'domain', label: 'Escolas' },
@@ -57,21 +59,77 @@ const ITENS: { aba: string; icon: string; label: string }[] = [
   { aba: 'lgpd', icon: 'shield_person', label: 'Privacidade (LGPD)' },
 ];
 
-// Grupo "Frota": abre e fecha, com as telas da frota recuadas
-const FROTA: { aba: string; icon: string; label: string }[] = [
-  { aba: 'frota', icon: 'airport_shuttle', label: 'Vans' },
-  { aba: 'checklist', icon: 'fact_check', label: 'Checklist' },
-  { aba: 'manutencao', icon: 'build', label: 'Manutenção' },
-  { aba: 'abastecimento', icon: 'local_gas_station', label: 'Abastecimento' },
-];
-const CHAVE_GRUPO = 'vancontrol_menu_frota';
+// Grupos: abrem e fecham, com as telas recuadas; cada um lembra aberto/fechado na sua chave
+interface Grupo { label: string; icon: string; chave: string; itens: Item[] }
+const GRUPOS: Record<string, Grupo> = {
+  frota: {
+    label: 'Frota', icon: 'airport_shuttle', chave: 'vancontrol_menu_frota',
+    itens: [
+      { aba: 'frota', icon: 'airport_shuttle', label: 'Vans' },
+      { aba: 'checklist', icon: 'fact_check', label: 'Checklist' },
+      { aba: 'manutencao', icon: 'build', label: 'Manutenção' },
+      { aba: 'abastecimento', icon: 'local_gas_station', label: 'Abastecimento' },
+    ],
+  },
+  alunos: {
+    label: 'Alunos', icon: 'groups', chave: 'vancontrol_menu_alunos',
+    itens: [
+      { aba: 'alunos', icon: 'groups', label: 'Alunos' },
+      { aba: 'responsaveis', icon: 'family_history', label: 'Responsáveis' },
+    ],
+  },
+};
 
-function lerAberto(): boolean {
-  try { return localStorage.getItem(CHAVE_GRUPO) === '1'; } catch { return false; }
+function lerAberto(chave: string): boolean {
+  try { return localStorage.getItem(chave) === '1'; } catch { return false; }
 }
-function salvarAberto(v: boolean) {
-  try { localStorage.setItem(CHAVE_GRUPO, v ? '1' : '0'); } catch { /* sem armazenamento: só não lembra */ }
+function salvarAberto(chave: string, v: boolean) {
+  try { localStorage.setItem(chave, v ? '1' : '0'); } catch { /* sem armazenamento: só não lembra */ }
 }
+
+const GrupoMenu: React.FC<{
+  grupo: Grupo;
+  subitens: Item[];
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+  badges?: Record<string, number>;
+}> = ({ grupo, subitens, activeTab, setActiveTab, badges = {} }) => {
+  const dentro = subitens.some(i => i.aba === activeTab);
+  const [aberto, setAberto] = useState(() => lerAberto(grupo.chave) || dentro);
+  const mudarAberto = (v: boolean) => { setAberto(v); salvarAberto(grupo.chave, v); };
+  // abre sozinho ao entrar numa tela do grupo
+  useEffect(() => { if (dentro && !aberto) mudarAberto(true); }, [dentro]); // eslint-disable-line react-hooks/exhaustive-deps
+  const totalBadges = subitens.reduce((s, i) => s + (badges[i.aba] || 0), 0);
+
+  return (
+    <div className="space-y-1">
+      <div className={`flex items-center rounded-lg w-full transition-all ${
+        dentro && !aberto ? 'bg-primary/10 text-primary font-bold' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
+      }`}>
+        <button onClick={() => { mudarAberto(true); setActiveTab(subitens[0].aba); }} className="flex items-center gap-3 pl-3 py-2.5 flex-1 min-w-0">
+          <span className="material-symbols-outlined text-[22px]">{grupo.icon}</span>
+          <span className="text-sm flex-1 text-left">{grupo.label}</span>
+          {!aberto && <Bolinha n={totalBadges} cor="bg-amber-500" />}
+        </button>
+        <button onClick={() => mudarAberto(!aberto)} className="px-2 py-2.5" aria-label={aberto ? `Fechar o grupo ${grupo.label}` : `Abrir o grupo ${grupo.label}`} aria-expanded={aberto}>
+          <span className="material-symbols-outlined text-[20px]">{aberto ? 'expand_more' : 'chevron_right'}</span>
+        </button>
+      </div>
+      {aberto && subitens.map(s => (
+        <SidebarItem
+          key={s.aba}
+          sub
+          icon={s.icon}
+          label={s.label}
+          badge={badges[s.aba]}
+          badgeCor="bg-amber-500"
+          active={activeTab === s.aba}
+          onClick={() => setActiveTab(s.aba)}
+        />
+      ))}
+    </div>
+  );
+};
 
 /** Checklists que pedem atenção hoje (pendentes + com problema); 0 se der erro. */
 function useAlertasChecklist(ativo: boolean) {
@@ -92,14 +150,8 @@ function useAlertasChecklist(ativo: boolean) {
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, naoLidas = 0, papel = 'dono' as Papel, usuario, onSair }) => {
   const iniciais = (usuario?.nome || '?').split(' ').filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase();
-  const subitens = FROTA.filter(i => podeVer(papel, i.aba));
-  const naFrota = subitens.some(i => i.aba === activeTab);
-  const [aberto, setAberto] = useState(() => lerAberto() || naFrota);
-  const alertasChecklist = useAlertasChecklist(subitens.some(i => i.aba === 'checklist'));
-
-  const mudarAberto = (v: boolean) => { setAberto(v); salvarAberto(v); };
-  // abre sozinho ao entrar numa tela da frota
-  useEffect(() => { if (naFrota && !aberto) mudarAberto(true); }, [naFrota]); // eslint-disable-line react-hooks/exhaustive-deps
+  const subitensDe = (id: string) => GRUPOS[id].itens.filter(i => podeVer(papel, i.aba));
+  const alertasChecklist = useAlertasChecklist(podeVer(papel, 'checklist'));
   return (
     <aside className="w-64 bg-slate-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col h-full shrink-0">
       <div className="p-6 flex items-center gap-3">
@@ -115,45 +167,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, naoLi
       </div>
 
       <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto custom-scrollbar">
-        {ITENS.filter(i => i.aba === 'frota' || podeVer(papel, i.aba)).map(i => i.aba === 'frota' ? (
-          subitens.length > 0 && (
-            <div key="grupo-frota" className="space-y-1">
-              <div className={`flex items-center rounded-lg w-full transition-all ${
-                naFrota && !aberto ? 'bg-primary/10 text-primary font-bold' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
-              }`}>
-                <button onClick={() => { mudarAberto(true); setActiveTab(subitens[0].aba); }} className="flex items-center gap-3 pl-3 py-2.5 flex-1 min-w-0">
-                  <span className="material-symbols-outlined text-[22px]">airport_shuttle</span>
-                  <span className="text-sm flex-1 text-left">Frota</span>
-                  {!aberto && <Bolinha n={alertasChecklist} cor="bg-amber-500" />}
-                </button>
-                <button onClick={() => mudarAberto(!aberto)} className="px-2 py-2.5" aria-label={aberto ? 'Fechar o grupo Frota' : 'Abrir o grupo Frota'} aria-expanded={aberto}>
-                  <span className="material-symbols-outlined text-[20px]">{aberto ? 'expand_more' : 'chevron_right'}</span>
-                </button>
-              </div>
-              {aberto && subitens.map(s => (
-                <SidebarItem
-                  key={s.aba}
-                  sub
-                  icon={s.icon}
-                  label={s.label}
-                  badge={s.aba === 'checklist' ? alertasChecklist : undefined}
-                  badgeCor="bg-amber-500"
-                  active={activeTab === s.aba}
-                  onClick={() => setActiveTab(s.aba)}
-                />
-              ))}
-            </div>
-          )
-        ) : (
-          <SidebarItem
-            key={i.aba}
-            icon={i.icon}
-            label={i.label}
-            badge={i.aba === 'mensagens' ? naoLidas : undefined}
-            active={activeTab === i.aba}
-            onClick={() => setActiveTab(i.aba)}
-          />
-        ))}
+        {ITENS.map(i => {
+          if ('grupo' in i) {
+            const subitens = subitensDe(i.grupo);
+            // sem permissão para nenhuma tela do grupo: o grupo não aparece
+            return subitens.length > 0 && (
+              <GrupoMenu
+                key={`grupo-${i.grupo}`}
+                grupo={GRUPOS[i.grupo]}
+                subitens={subitens}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                badges={i.grupo === 'frota' ? { checklist: alertasChecklist } : undefined}
+              />
+            );
+          }
+          return podeVer(papel, i.aba) && (
+            <SidebarItem
+              key={i.aba}
+              icon={i.icon}
+              label={i.label}
+              badge={i.aba === 'mensagens' ? naoLidas : undefined}
+              active={activeTab === i.aba}
+              onClick={() => setActiveTab(i.aba)}
+            />
+          );
+        })}
       </nav>
 
       <div className="p-4 border-t border-slate-200 dark:border-slate-800">
