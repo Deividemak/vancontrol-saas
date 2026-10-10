@@ -18,7 +18,7 @@ const ABAS = [
 export const Financeiro: React.FC = () => {
   const [aba, setAba] = useState('mensalidades');
   return (
-    <div className="p-8 space-y-6 animate-in fade-in duration-500 max-w-[1600px] mx-auto">
+    <div className="p-6 lg:p-8 space-y-6 animate-in fade-in duration-500 max-w-[1600px] mx-auto">
       <div className="flex flex-col gap-1">
         <h2 className="text-3xl font-black tracking-tight">Controle Financeiro</h2>
         <p className="text-slate-500 dark:text-slate-400">Mensalidades, cobrança por Pix e WhatsApp, inadimplência, contratos e lucro de cada rota</p>

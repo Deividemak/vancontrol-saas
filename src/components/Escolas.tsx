@@ -149,7 +149,7 @@ export const Escolas: React.FC = () => {
   }
 
   return (
-    <div className="p-8 space-y-8 animate-in fade-in duration-500">
+    <div className="p-6 lg:p-8 space-y-8 animate-in fade-in duration-500">
       <Abas ativa={pagina} onTrocar={id => setPagina(id as 'escolas' | 'calendario')} abas={[
         { id: 'escolas', label: 'Escolas', icone: 'domain' },
         { id: 'calendario', label: 'Calendário escolar', icone: 'calendar_month' },

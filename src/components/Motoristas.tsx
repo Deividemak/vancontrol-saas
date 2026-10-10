@@ -129,7 +129,7 @@ export const Motoristas: React.FC = () => {
   }
 
   return (
-    <div className="p-8 space-y-8 animate-in fade-in duration-500 relative">
+    <div className="p-6 lg:p-8 space-y-8 animate-in fade-in duration-500 relative">
       <div className="flex justify-between items-end">
         <div>
           <h2 className="text-3xl font-black tracking-tight">Motoristas</h2>

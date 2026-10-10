@@ -126,7 +126,7 @@ export const Abastecimento: React.FC = () => {
   };
 
   return (
-    <div className="p-8 space-y-8 animate-in fade-in duration-500 max-w-[1600px] mx-auto relative">
+    <div className="p-6 lg:p-8 space-y-8 animate-in fade-in duration-500 max-w-[1600px] mx-auto relative">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h2 className="text-3xl font-black tracking-tight">Histórico de Abastecimento</h2>

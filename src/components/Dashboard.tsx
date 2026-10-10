@@ -138,7 +138,7 @@ export const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="p-8 space-y-8 animate-in fade-in duration-500">
+    <div className="p-6 lg:p-8 space-y-8 animate-in fade-in duration-500">
       <div>
         <h2 className="text-3xl font-black tracking-tight">Painel de Controle</h2>
         <p className="text-slate-500 dark:text-slate-400">Visão geral da frota e desempenho financeiro.</p>

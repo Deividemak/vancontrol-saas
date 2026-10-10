@@ -263,7 +263,7 @@ export const Alunos: React.FC = () => {
   if (loading) return <div className="p-8 text-center font-bold">Carregando alunos...</div>;
 
   return (
-    <div className="p-8 space-y-6 animate-in fade-in duration-500">
+    <div className="p-6 lg:p-8 space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="flex flex-col gap-2">
           <h2 className="text-3xl font-black tracking-tight">Gestão de Alunos</h2>
