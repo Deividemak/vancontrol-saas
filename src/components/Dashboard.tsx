@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StatCard } from './StatCard';
 
+import { apiFetch } from '../services/api';
 interface DashboardData {
   kpis: {
     totalAlunos: number;
@@ -9,6 +10,7 @@ interface DashboardData {
     atrasos: number;
   };
   grafico: { mes: string; total: number }[];
+  financeiro_visivel?: boolean;
   alertas: {
     manutencoes: { placa: string; servico: string; data_agendada: string }[];
     cnhVencendo: { nome: string; vencimento_cnh: string }[];
@@ -22,7 +24,7 @@ export const Dashboard: React.FC = () => {
   const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/dashboard')
+    apiFetch('/api/dashboard')
       .then(async res => {
          const text = await res.text();
          try {
@@ -157,6 +159,7 @@ export const Dashboard: React.FC = () => {
           isPositive={true} 
           icon="airport_shuttle" 
         />
+        {data?.financeiro_visivel !== false && <>
         <StatCard 
           title="Receita Mensal" 
           value={formatCurrency(data?.kpis?.receitaMensal || 0)} 
@@ -175,11 +178,12 @@ export const Dashboard: React.FC = () => {
           iconColor="text-rose-500"
           bgColor="bg-rose-500/10"
         />
+        </>}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {renderChart()}
+        {data?.financeiro_visivel !== false ? renderChart() : <div className="lg:col-span-2" />}
 
         <div className="flex flex-col gap-6">
           <div className="p-6 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm animate-in fade-in slide-in-from-right-4 duration-500">

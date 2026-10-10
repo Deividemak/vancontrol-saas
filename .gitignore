@@ -6,3 +6,11 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Bancos locais e saídas de scripts de debug
+server/*.db
+server/*.db-shm
+server/*.db-wal
+output.json
+
+.claude-tmp/

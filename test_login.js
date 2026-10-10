@@ -1,4 +1,4 @@
-const user = { email: 'admin@equiprent.com', senha: '123' };
+const user = { email: 'admin@eqprent.comui', senha: '123' };
 
 fetch('http://localhost:3002/api/auth/login', {
   method: 'POST',

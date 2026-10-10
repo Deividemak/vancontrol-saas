@@ -9,7 +9,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "migrate": "node server/migrations.js",
+    "plano": "node server/services/planos.js"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
@@ -20,15 +22,18 @@
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.3",
+    "leaflet": "^1.9.4",
     "lucide-react": "^0.546.0",
     "mariadb": "^3.5.1",
     "motion": "^12.23.24",
+    "qrcode-generator": "^2.0.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "vite": "^6.2.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
+    "@types/leaflet": "^1.9.12",
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",
     "tailwindcss": "^4.1.14",

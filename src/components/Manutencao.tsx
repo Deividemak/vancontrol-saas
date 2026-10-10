@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
+import { apiFetch } from '../services/api';
 const StatCard = ({ title, value, change, isPositive, icon, iconColor = "text-primary", bgColor = "bg-primary/10", onClick, isActive }: any) => (
   <div
     onClick={onClick}
@@ -48,8 +49,8 @@ export const Manutencao: React.FC = () => {
     const fetchData = async () => {
       try {
         const [dashRes, agendaRes] = await Promise.all([
-          fetch('/api/manutencoes/dashboard'),
-          fetch('/api/manutencoes/agenda')
+          apiFetch('/api/manutencoes/dashboard'),
+          apiFetch('/api/manutencoes/agenda')
         ]);
         if (dashRes.ok && agendaRes.ok) {
           const dashData = await dashRes.json();
@@ -106,7 +107,7 @@ export const Manutencao: React.FC = () => {
   const handleRegSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/manutencoes', {
+      const res = await apiFetch('/api/manutencoes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(regFormData)
@@ -130,7 +131,7 @@ export const Manutencao: React.FC = () => {
     e.preventDefault();
     if (!selectedVehicle) return;
     try {
-      const res = await fetch(`/api/frota/${selectedVehicle.id}/km`, {
+      const res = await apiFetch(`/api/frota/${selectedVehicle.id}/km`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(kmFormData)

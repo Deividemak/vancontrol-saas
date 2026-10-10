@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
+import { apiFetch } from '../services/api';
+import { AcessoMotorista } from './operacao/AcessoMotorista';
 interface Driver {
   id: number;
   nome: string;
@@ -16,6 +18,12 @@ export const Motoristas: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
+  const [acessos, setAcessos] = useState<Record<number, string>>({});
+  const [acessoDe, setAcessoDe] = useState<Driver | null>(null);
+  const carregarAcessos = () => {
+    apiFetch('/api/motoristas-acesso').then(r => (r.ok ? r.json() : [])).then((l: { motorista_id: number; email: string }[]) =>
+      setAcessos(Object.fromEntries(l.map(a => [a.motorista_id, a.email]))));
+  };
   const [formData, setFormData] = useState({
     nome: '',
     telefone: '',
@@ -27,7 +35,7 @@ export const Motoristas: React.FC = () => {
 
   const fetchDrivers = () => {
     setLoading(true);
-    fetch('/api/motoristas')
+    apiFetch('/api/motoristas')
       .then(res => res.json())
       .then(data => {
         const enriched = data.map((d: any) => ({
@@ -47,6 +55,7 @@ export const Motoristas: React.FC = () => {
 
   useEffect(() => {
     fetchDrivers();
+    carregarAcessos();
   }, []);
 
   const handleOpenModal = (driver?: Driver) => {
@@ -80,7 +89,7 @@ export const Motoristas: React.FC = () => {
     const url = editingDriver ? `/api/motoristas/${editingDriver.id}` : '/api/motoristas';
 
     try {
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -102,7 +111,7 @@ export const Motoristas: React.FC = () => {
     if (!confirm('Tem certeza que deseja excluir este motorista?')) return;
 
     try {
-      const res = await fetch(`/api/motoristas/${id}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/motoristas/${id}`, { method: 'DELETE' });
       if (res.ok) {
         fetchDrivers();
       } else {
@@ -167,7 +176,18 @@ export const Motoristas: React.FC = () => {
                 <span className="material-symbols-outlined text-sm">call</span>
                 <span className="text-xs font-bold">{d.telefone}</span>
               </div>
-              <div className="mt-4 flex gap-2">
+              <div className="mt-2 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1">
+                <span className={`material-symbols-outlined text-sm ${acessos[d.id] ? 'text-emerald-600' : 'text-slate-400'}`}>phone_iphone</span>
+                {acessos[d.id] ? <span className="text-emerald-600 normal-case tracking-normal">App: {acessos[d.id]}</span> : <span className="text-slate-400">Sem acesso ao app</span>}
+              </div>
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={() => setAcessoDe(d)}
+                  className="py-1.5 px-3 bg-primary/10 text-primary hover:bg-primary/20 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors"
+                  title="Acesso ao app do motorista"
+                >
+                  App
+                </button>
                 <button
                   onClick={() => handleOpenModal(d)}
                   className="flex-1 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors"
@@ -280,6 +300,8 @@ export const Motoristas: React.FC = () => {
           </div>
         </div>
       )}
+      <AcessoMotorista motorista={acessoDe} emailAtual={acessoDe ? acessos[acessoDe.id] || null : null}
+        onFechar={() => setAcessoDe(null)} onMudou={carregarAcessos} />
     </div>
   );
 };

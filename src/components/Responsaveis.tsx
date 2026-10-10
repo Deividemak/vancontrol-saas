@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
+import { apiFetch } from '../services/api';
+import { PortalResponsavel } from './operacao/PortalResponsavel';
 interface Responsible {
   id: number;
   nome: string;
@@ -10,6 +12,8 @@ interface Responsible {
   status: string;
   total_alunos: number;
   alunos_nomes?: string;
+  whatsapp_ativo?: boolean;
+  portal_ultimo_acesso?: string | null;
 }
 
 export const Responsaveis: React.FC = () => {
@@ -17,6 +21,7 @@ export const Responsaveis: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingRes, setEditingRes] = useState<Responsible | null>(null);
+  const [portalDe, setPortalDe] = useState<Responsible | null>(null);
   const [formData, setFormData] = useState({
     nome: '',
     email: '',
@@ -29,7 +34,7 @@ export const Responsaveis: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/responsaveis');
+      const res = await apiFetch('/api/responsaveis');
       if (res.ok) {
         const data = await res.json();
         setResponsibles(Array.isArray(data) ? data : []);
@@ -76,7 +81,7 @@ export const Responsaveis: React.FC = () => {
     const url = editingRes ? `/api/responsaveis/${editingRes.id}` : '/api/responsaveis';
 
     try {
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -97,7 +102,7 @@ export const Responsaveis: React.FC = () => {
   const handleDelete = async (id: number) => {
     if (!confirm('Tem certeza que deseja excluir este responsável?')) return;
     try {
-      const res = await fetch(`/api/responsaveis/${id}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/responsaveis/${id}`, { method: 'DELETE' });
       if (res.ok) {
         fetchData();
       } else {
@@ -157,6 +162,7 @@ export const Responsaveis: React.FC = () => {
                     <td className="px-6 py-5">
                       <div className="flex items-center gap-3">
                         <div className="text-sm text-slate-600 dark:text-slate-400 font-medium">{res.telefone}</div>
+                        {res.whatsapp_ativo === false && <span title="Avisos automáticos desligados" className="material-symbols-outlined text-[18px] text-slate-400">notifications_off</span>}
                         <a href={`https://wa.me/55${res.telefone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="p-1.5 bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600 rounded-md cursor-pointer hover:scale-110 transition-transform">
                           <span className="material-symbols-outlined text-[18px]">chat</span>
                         </a>
@@ -183,6 +189,13 @@ export const Responsaveis: React.FC = () => {
                     </td>
                     <td className="px-6 py-5 text-right">
                       <div className="flex items-center justify-end gap-2 text-slate-400">
+                        <button
+                          onClick={() => setPortalDe(res)}
+                          title="Portal e avisos no WhatsApp"
+                          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg hover:text-primary transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[20px]">phonelink_ring</span>
+                        </button>
                         <button
                           onClick={() => handleOpenModal(res)}
                           className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg hover:text-primary transition-colors"
@@ -286,6 +299,7 @@ export const Responsaveis: React.FC = () => {
           </div>
         </div>
       )}
+      <PortalResponsavel resp={portalDe} onFechar={() => setPortalDe(null)} onMudou={fetchData} />
     </div>
   );
 };

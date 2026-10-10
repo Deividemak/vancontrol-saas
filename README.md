@@ -1,114 +1,51 @@
-# 🚐 Vancontrol — Plataforma SaaS de Gestão para Transporte Escolar
+# 🚐 VanControl — SaaS de gestão e roteirização de transporte escolar
 
-[![React](https://img.shields.io/badge/React-18.x-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.x-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![License](https://img.shields.io/badge/Licen%C3%A7a-MIT-green?style=for-the-badge)](LICENSE)
+Sistema para donos de van e empresas de transporte escolar (de 1 a 40 vans): rotas no mapa, app do motorista, acompanhamento pelos pais e pela escola, cobrança por Pix/WhatsApp e gestão da frota — com várias empresas no mesmo sistema.
 
-> Plataforma completa e moderna desenvolvida para motoristas e empresas de transporte escolar gerenciarem rotas de alunos, fluxo financeiro, contratos e manutenções de veículos em um único lugar.
+**Stack:** React + TypeScript + Vite + Tailwind · Node.js/Express · MariaDB · Leaflet/OpenStreetMap · OSRM · WhatsApp (Z-API ou webhook/n8n) · Asaas (opcional) · Gemini (opcional)
 
----
+## Como rodar
 
-## 📌 Visão Geral do Projeto
+1. Copie `.env.example` para `.env` e preencha pelo menos `DB_*` e `JWT_SECRET` (mínimo 32 caracteres).
+2. `npm install`
+3. Em um terminal: `npm run server` (API na porta 3002 — atualiza o banco sozinho ao iniciar).
+4. Em outro: `npm run dev` (painel em http://localhost:3000).
 
-O **Vancontrol** resolve a dor de dezenas de motoristas que ainda utilizam pranchetas e planilhas manuais para gerenciar trajetos diários e cobranças de mensalidades. 
+Outros comandos: `npm run migrate` (só atualizar o banco) · `npm run plano -- <empresa_id> <gratis|essencial|profissional|frota|completo>` (mudar o plano de uma empresa).
 
-A plataforma digitaliza todo o ciclo operacional: do cadastro e alocação de pontos de embarque/desembarque de alunos, até o controle automático de inadimplência, abastecimentos e revisões de veículos.
+## O que o sistema faz
 
----
+| Área | Recursos |
+|---|---|
+| **Rotas** | Endereços com CEP e ajuste no mapa · ida/volta por turno, várias viagens por van · ordem por arrastar e soltar · otimização (respeita entrada da escola, tempo máximo na van e lotação) · trânsito no horário de pico · pontos de encontro e áreas restritas · simulação "e se" de aluno novo com preço sugerido · agenda da frota e conflitos |
+| **App do motorista (celular)** | Rotas do dia, checklist de saída, embarque/desembarque com um toque, funciona sem sinal, GPS, "cheguei no ponto", varredura obrigatória ("nenhuma criança na van"), ocorrências com foto, botão de emergência · **monitor** usa o mesmo app |
+| **Pais** | Portal por link (sem senha): van ao vivo e previsão de chegada, faltas, quem pode buscar, Pix/recibos, contrato, conversa · avisos automáticos no WhatsApp (embarcou, chegou, van a 5 min...) · faltas e "cadê a van?" pelo WhatsApp · IA (Gemini) para dúvidas |
+| **Escola** | Portal por link: quais alunos estão chegando, em qual van e quando |
+| **Operação** | Operação do dia, mapa ao vivo da frota, replay do trajeto, alertas (parada, desvio, velocidade, sem sinal, atraso previsto, rota não encerrada), substituição de motorista/van, documentos com vencimento (CRLV, vistoria, seguro, CNH, cursos), rastreador veicular (GPS/OBD) |
+| **Financeiro** | Mensalidades automáticas, Pix copia e cola (ou Asaas), régua de cobrança no WhatsApp, inadimplência e suspensão, recibos, contrato digital com aceite, preço por distância/irmãos/proporcional, custos e lucro por rota |
+| **Gestão** | Relatórios (pontualidade, ocupação, km, custo por aluno, CSV) · equipe com perfis (dono, gestor, financeiro, motorista, monitor) · planos por número de vans |
+| **LGPD** | Termo aceito pelos pais no portal · registro de quem acessa dados das crianças · exportação e anonimização a pedido · retenção automática (alunos inativos e GPS antigo) |
 
-## ✨ Principais Funcionalidades
-
-### 🗺️ Roteirização e Gestão de Alunos
-- **Cadastro Completo de Alunos e Responsáveis:** Contatos de emergência, escolas, turnos e endereços residenciais.
-- **Planejamento de Trajetos Inteligentes:** Organização sequencial dos pontos de parada por proximidade geográfica e horários escolares.
-- **Controle de Presença Diário:** Check-in rápido de embarque e desembarque para acompanhamento em tempo real.
-
-### 💰 Gestão Financeira Completa
-- **Controle de Mensalidades:** Acompanhamento visual de status (Pago, Pendente, Atrasado).
-- **Relatórios de Faturamento:** Gráficos interativos com projeção de receita mensal e fluxo de caixa.
-- **Gestão de Custos Operacionais:** Registro categorizado de despesas com combustível, pedágios, pneus e manutenções mecânicas.
-
-### 🚐 Gestão de Frotas e Veículos
-- **Controle de Manutenção Preventiva:** Alertas para troca de óleo, vistorias obrigatórias e renovação de documentação (IPVA, licenciamento, alvará).
-- **Consumo e Abastecimento:** Cálculo de média de consumo (km/L) e custo médio por quilômetro rodado.
-
----
-
-## 🏗️ Arquitetura e Tecnologias
-
-A aplicação foi construída com arquitetura desacoplada e código fortemente tipado:
+## Estrutura
 
 ```
-vancontrol-saas/
-├── src/                    # Frontend React + TypeScript
-│   ├── components/         # Componentes modulares e reutilizáveis (UI)
-│   ├── pages/              # Telas da aplicação (Dashboard, Alunos, Rotas, Financeiro)
-│   ├── hooks/              # Custom Hooks para gerenciamento de estado
-│   ├── types/              # Interfaces e tipos globais TypeScript
-│   └── services/           # Camada de comunicação com a API REST
-├── server/                 # Backend Node.js / Express
-│   ├── routes/             # Definição de rotas RESTful
-│   ├── controllers/        # Lógica de controle e regras de negócio
-│   └── database/           # Conexão e esquemas de dados relacionais
-└── public/                 # Assets estáticos e ícones
+server/
+  index.js          monta as rotas da API e inicia as tarefas automáticas
+  migrations.js     atualizações do banco (rodam sozinhas, nunca apagam dados)
+  middleware/       login, perfis e permissões
+  lib/              utilidades (http, multi-empresa, geometria)
+  routes/           endpoints por módulo (alunos, rotas, motorista, portal, financeiro...)
+  services/         regras de negócio (cálculo de rota, cobrança, WhatsApp, LGPD...)
+src/
+  components/       telas do painel
+  motorista/        app do motorista/monitor (PWA)
+  portal/           portal dos pais
+  escola/           portal da escola
 ```
 
-### Stack Técnica Detalhada:
-- **Frontend:** React 18, TypeScript, Tailwind CSS, Lucide React, Vite.
-- **Backend:** Node.js, Express, RESTful APIs, JWT para autenticação segura.
-- **Banco de Dados:** Banco relacional estruturado com rotinas de consulta otimizadas.
-- **DevOps & Ferramentas:** Git, GitHub, ESLint, Prettier, Postman.
+## Integrações (todas opcionais)
 
----
-
-## 🚀 Como Executar o Projeto Localmente
-
-### Pré-requisitos
-- [Node.js](https://nodejs.org/) (versão 18 ou superior)
-- [Git](https://git-scm.com/)
-
-### Passo a Passo:
-
-1. **Clone o repositório:**
-   ```bash
-   git clone https://github.com/Deividemak/vancontrol-saas.git
-   cd vancontrol-saas
-   ```
-
-2. **Instale as dependências:**
-   ```bash
-   npm install
-   ```
-
-3. **Configure as Variáveis de Ambiente:**
-   Copie o arquivo `.env.example` para `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-
-4. **Inicie o servidor de desenvolvimento:**
-   ```bash
-   npm run dev
-   ```
-
-5. **Acesse no navegador:**
-   Abra [http://localhost:5173](http://localhost:5173) para visualizar a aplicação.
-
----
-
-## 👨‍💻 Autor
-
-**Deivide Ferreira de Souza**  
-*Desenvolvedor Full Stack*
-
-- 🌐 LinkedIn: [linkedin.com/in/deividmak](https://linkedin.com/in/deividmak)
-- 🐙 GitHub: [@Deividemak](https://github.com/Deividemak)
-- ✉️ Email: [deividmak@gmail.com](mailto:deividmak@gmail.com)
-
----
-
-## 📄 Licença
-
-Este projeto está sob a licença [MIT](LICENSE).
+- **WhatsApp:** cada empresa configura em Mensagens → WhatsApp (Z-API ou webhook, ex.: n8n/Evolution API). Sem configuração, fica em modo teste (só mostra no console). Para receber mensagens dos pais é preciso o sistema estar publicado com HTTPS.
+- **Asaas:** Financeiro → Configurações (boleto/cartão/Pix com baixa automática).
+- **Gemini:** `GEMINI_API_KEY` no `.env`.
+- **Rastreador:** Frota → Rastreador mostra o endereço para o rastreador (ou Traccar) enviar as posições.

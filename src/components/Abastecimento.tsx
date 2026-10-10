@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { StatCard } from './StatCard';
 
+import { apiFetch } from '../services/api';
 interface FuelLog {
   id: number;
   data_abastecimento: string;
@@ -81,7 +82,7 @@ export const Abastecimento: React.FC = () => {
   const fetchData = async () => {
     try {
       const [resLogs, resVeiculos, resMotoristas] = await Promise.all([
-        fetch('/api/abastecimentos'), fetch('/api/fleet/management'), fetch('/api/motoristas')
+        apiFetch('/api/abastecimentos'), apiFetch('/api/fleet/management'), apiFetch('/api/motoristas')
       ]);
       if (resLogs.ok) setFuelLogs(await resLogs.json());
       if (resVeiculos.ok) setVeiculos(await resVeiculos.json());
@@ -95,7 +96,7 @@ export const Abastecimento: React.FC = () => {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await fetch('/api/abastecimentos', {
+      const res = await apiFetch('/api/abastecimentos', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData)
       });
       if (res.ok) {
@@ -110,7 +111,7 @@ export const Abastecimento: React.FC = () => {
     if (!window.confirm('Tem certeza que deseja excluir este registro? A ação não poderá ser desfeita.')) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/abastecimentos/${id}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/abastecimentos/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setViewLog(null);
         fetchData();

@@ -15,6 +15,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
+    const [empresa, setEmpresa] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -24,7 +25,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         setLoading(true);
 
         const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
-        const body = isLogin ? { email, senha: password } : { nome: name, email, senha: password };
+        const body = isLogin ? { email, senha: password } : { nome: name, email, senha: password, empresa };
 
         try {
             const response = await fetch(endpoint, {
@@ -91,6 +92,26 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                                         placeholder="Seu nome"
                                     />
                                 </div>
+                            </div>
+                        )}
+
+                        {!isLogin && (
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                                    Nome da empresa
+                                </label>
+                                <div className="relative group">
+                                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors">business</span>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={empresa}
+                                        onChange={(e) => setEmpresa(e.target.value)}
+                                        className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl py-3.5 pl-12 pr-4 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium"
+                                        placeholder="Ex.: Transporte Escolar Tio João"
+                                    />
+                                </div>
+                                <p className="text-[11px] text-slate-400">Cada cadastro cria uma empresa nova. Para entrar na empresa de outra pessoa, peça que o dono crie seu acesso em Equipe.</p>
                             </div>
                         )}
 
@@ -167,7 +188,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                                     onClick={() => setIsLogin(false)}
                                     className="text-primary font-bold hover:underline"
                                 >
-                                    Registe-se agora
+                                    Cadastre-se agora
                                 </button>
                             </>
                         ) : (

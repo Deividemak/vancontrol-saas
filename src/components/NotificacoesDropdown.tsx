@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 
+import { apiFetch } from '../services/api';
 interface NotificacoesData {
   manutencoes: { placa: string; servico: string; data_agendada: string }[];
   cnhVencendo: { nome: string; vencimento_cnh: string }[];
@@ -21,7 +22,7 @@ export const NotificacoesDropdown: React.FC<NotificacoesDropdownProps> = ({ isOp
   const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/notifications', {
+      const res = await apiFetch('/api/notifications', {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('vancontrol_token')}` }
       });
       if (res.ok) {

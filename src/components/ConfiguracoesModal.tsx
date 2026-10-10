@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
+import { apiFetch } from '../services/api';
 interface User {
   id: number;
   nome: string;
@@ -41,13 +42,12 @@ export const ConfiguracoesModal: React.FC<ConfiguracoesModalProps> = ({ isOpen, 
     setPerfilMsg({ type: '', text: '' });
 
     try {
-      const response = await fetch('/api/auth/profile', {
+      const response = await apiFetch('/api/auth/profile', {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('vancontrol_token')}`
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ userId: user.id, nome, email })
+        body: JSON.stringify({ nome, email })
       });
 
       const data = await response.json();
@@ -71,13 +71,12 @@ export const ConfiguracoesModal: React.FC<ConfiguracoesModalProps> = ({ isOpen, 
     setSenhaMsg({ type: '', text: '' });
 
     try {
-      const response = await fetch('/api/auth/password', {
+      const response = await apiFetch('/api/auth/password', {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('vancontrol_token')}`
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ userId: user.id, senhaAtual, novaSenha })
+        body: JSON.stringify({ senhaAtual, novaSenha })
       });
 
       const data = await response.json();

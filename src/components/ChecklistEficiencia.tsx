@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
+import { apiFetch } from '../services/api';
 interface Veiculo {
   id: number;
   placa: string;
@@ -22,6 +23,7 @@ interface Checklist {
   luzes: 'ok' | 'error';
   limpeza: 'ok' | 'error';
   cintos: 'ok' | 'error';
+  extintor?: 'ok' | 'error' | null;
   observacoes: string | null;
   veiculo_placa: string;
   motorista_nome: string;
@@ -58,9 +60,9 @@ export const ChecklistEficiencia: React.FC<{ onNavigate?: (tab: string) => void 
   const fetchData = async () => {
     try {
       const [resChecklists, resVeiculos, resMotoristas] = await Promise.all([
-        fetch('/api/checklists'),
-        fetch('/api/fleet/management'),
-        fetch('/api/motoristas')
+        apiFetch('/api/checklists'),
+        apiFetch('/api/fleet/management'),
+        apiFetch('/api/motoristas')
       ]);
 
       if (resChecklists.ok) setChecklists(await resChecklists.json());
@@ -102,8 +104,8 @@ export const ChecklistEficiencia: React.FC<{ onNavigate?: (tab: string) => void 
         setLoadingPerformance(true);
         try {
           const [resNextMaint, resPerf] = await Promise.all([
-            fetch(`/api/frota/${activeVeiculoId}/next-maintenance`),
-            fetch(`/api/frota/${activeVeiculoId}/performance`)
+            apiFetch(`/api/frota/${activeVeiculoId}/next-maintenance`),
+            apiFetch(`/api/frota/${activeVeiculoId}/performance`)
           ]);
           if (resNextMaint.ok) {
             setNextMaintenance(await resNextMaint.json());
@@ -133,7 +135,7 @@ export const ChecklistEficiencia: React.FC<{ onNavigate?: (tab: string) => void 
     };
 
     try {
-      const response = await fetch('/api/checklists', {
+      const response = await apiFetch('/api/checklists', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(submitData),
@@ -158,7 +160,7 @@ export const ChecklistEficiencia: React.FC<{ onNavigate?: (tab: string) => void 
 
   const handleResolveAlert = async (id: number) => {
     try {
-      const response = await fetch(`/api/checklists/${id}/resolve`, {
+      const response = await apiFetch(`/api/checklists/${id}/resolve`, {
         method: 'PUT'
       });
       if (response.ok) {
@@ -555,7 +557,7 @@ export const ChecklistEficiencia: React.FC<{ onNavigate?: (tab: string) => void 
                 <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-500 font-bold">Nenhum registro encontrado para este veículo.</td></tr>
               )}
               {checklists.filter(c => c.veiculo_id == activeVeiculoId).map((item) => {
-                const hasError = ['error'].some(status => [item.freios, item.pneus, item.oleo, item.luzes, item.limpeza, item.cintos].includes(status as any));
+                const hasError = ['error'].some(status => [item.freios, item.pneus, item.oleo, item.luzes, item.limpeza, item.cintos, item.extintor].includes(status as any));
                 const evento = hasError ? 'Problemas relatados no checklist' : 'Checklist concluído: 100% OK';
                 const impacto = hasError ? (item.resolvido ? 'RESOLVIDO' : 'MÉDIO') : 'N/A';
                 const statusStr = hasError ? (item.resolvido ? 'Resolvido' : 'Aguardando Revisão') : 'Confirmado';
@@ -615,6 +617,7 @@ export const ChecklistEficiencia: React.FC<{ onNavigate?: (tab: string) => void 
                             <span className="font-black text-slate-400 uppercase tracking-widest text-[10px]">Itens com defeito reportados:</span>
                             <div className="flex flex-wrap gap-2 mt-2">
                               {item.freios === 'error' && <span className="px-2 py-1 bg-rose-500/10 text-rose-500 rounded font-bold uppercase text-[10px] tracking-widest border border-rose-500/20">Freios</span>}
+                              {item.extintor === 'error' && <span className="px-2 py-1 bg-rose-500/10 text-rose-500 rounded font-bold uppercase text-[10px] tracking-widest border border-rose-500/20">Extintor</span>}
                               {item.pneus === 'error' && <span className="px-2 py-1 bg-rose-500/10 text-rose-500 rounded font-bold uppercase text-[10px] tracking-widest border border-rose-500/20">Pneus</span>}
                               {item.oleo === 'error' && <span className="px-2 py-1 bg-rose-500/10 text-rose-500 rounded font-bold uppercase text-[10px] tracking-widest border border-rose-500/20">Óleo</span>}
                               {item.luzes === 'error' && <span className="px-2 py-1 bg-rose-500/10 text-rose-500 rounded font-bold uppercase text-[10px] tracking-widest border border-rose-500/20">Luzes</span>}
