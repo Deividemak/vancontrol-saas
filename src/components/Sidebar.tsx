@@ -49,7 +49,7 @@ const ITENS: (Item | { grupo: string })[] = [
   { grupo: 'frota' },
   { aba: 'documentos', icon: 'folder_shared', label: 'Documentos' },
   { aba: 'motoristas', icon: 'badge', label: 'Motoristas' },
-  { grupo: 'alunos' },
+  { aba: 'alunos', icon: 'groups', label: 'Alunos' },
   { aba: 'financeiro', icon: 'account_balance_wallet', label: 'Financeiro' },
   { aba: 'rotas', icon: 'map', label: 'Rotas' },
   { aba: 'escolas', icon: 'domain', label: 'Escolas' },
@@ -69,13 +69,6 @@ const GRUPOS: Record<string, Grupo> = {
       { aba: 'checklist', icon: 'fact_check', label: 'Checklist' },
       { aba: 'manutencao', icon: 'build', label: 'Manutenção' },
       { aba: 'abastecimento', icon: 'local_gas_station', label: 'Abastecimento' },
-    ],
-  },
-  alunos: {
-    label: 'Alunos', icon: 'groups', chave: 'vancontrol_menu_alunos',
-    itens: [
-      { aba: 'alunos', icon: 'groups', label: 'Alunos' },
-      { aba: 'responsaveis', icon: 'family_history', label: 'Responsáveis' },
     ],
   },
 };
